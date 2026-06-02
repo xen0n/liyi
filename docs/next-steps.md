@@ -118,6 +118,43 @@ cheaper interim mitigation: have `liyi check` *detect and warn* when two specs
 (or two discovered items) share a tree_path, surfacing the ambiguity even if it
 can't auto-resolve it.
 
+### 2E. `@liyi:file` file-scoped directives
+
+| # | Item | Source |
+|---|------|--------|
+| 2.9 | **`@liyi:file language=` override + discovery-level `ignore`** | `docs/file-directive-design.md` |
+
+A single namespaced directive family for file-scoped metadata. `language=<lang>`
+overrides language detection (precedence: inline > injection profile > extension),
+fixing extension-ambiguous cases like `.h` (C vs C++) and extensionless files.
+`ignore` excludes a file from discovery additively with `.liyiignore`, for files
+you own. Implementation surface: `markers.rs` (new `File` variant + `key=value`
+parse), `detect_language_with_meta(path, content)` in `tree_path/mod.rs` (and
+retire the stale `.h`→C doc comment), and a discovery hook alongside the
+`.liyiignore` cascade. Independent of the LSP work; can parallelize. Design
+authority: `docs/file-directive-design.md` (requirements `file-directive-namespace`,
+`file-language-precedence`, `file-ignore-additive`).
+
+### 2F. `@liyi:note` context primitive + `liyi context` CLI
+
+| # | Item | Source |
+|---|------|--------|
+| 2.10 | **Hard-rename `@liyi:module` → `@liyi:note`; add `@liyi:end-note`, `@liyi:see`; `liyi context <path:line>` MVP** | `docs/note-context-design.md` |
+
+Replaces the presence-only `@liyi:module` marker with a marker-only, untracked
+**context primitive**: notes carry governing prose injected into a reader's
+context, separated from the hash-anchored staleness graph (the "two-graph"
+model). Adds `@liyi:end-note` (block bounding) and `@liyi:see <name>` (item-side
+membership). The near-term consumer is a read-only `liyi context <path:line>`
+command that resolves and prints applicable notes; the LSP/MCP context API
+(Tier 3) is the eventual home, and challenge-mode verification (Tier 4.4) is the
+deferred semantic check — notes never seed adversarial unit tests. The staleness
+engine (`check.rs`) is untouched; the JSON schema is unchanged. This is a
+pre-1.0 breaking rename (no external adopters). Design authority:
+`docs/note-context-design.md` (requirements `note-is-untracked`,
+`note-directory-scope`, `note-see-membership`, `two-graph-separation`,
+`context-resolution`).
+
 ## Tier 3 — v0.2 headline: LSP server
 
 Depends on Tier 2B completion.
