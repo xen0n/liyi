@@ -83,6 +83,18 @@ An unnamed note is anonymous and participates only by scope (below).
 where the prose ends) and **optional** for a dedicated file whose entire body is
 the note.
 
+### `LIYI.md`: a dedicated note file
+
+A directory may carry a `LIYI.md` whose purpose is to hold notes for that
+subtree. The name is reserved — a file called `LIYI.md` is assumed to be ours,
+so tools and reviewers can recognize it on sight without parsing. It is **not**,
+however, magic: a `LIYI.md` still carries an explicit `@liyi:note` marker like
+any other note-bearing file. The marker requirement is deliberate — it keeps the
+scanning rule uniform (one gate, no per-filename special cases) and keeps the
+data self-describing (the block announces what it is, even when copied out of its
+file). `LIYI.md` is therefore a *convention for where notes live*, not a second
+parsing path.
+
 ### Notes are untracked
 
 This is the central design commitment.
@@ -103,14 +115,20 @@ only to being found.
 ### Scope: where a note applies
 
 <!-- @liyi:requirement note-directory-scope -->
-**A note's default scope is its directory subtree, shadowed by nesting.** A note
-applies to the directory it lives in and all descendant directories, unless a
-deeper directory provides its own note, which shadows the ancestor's for that
-subtree (nearest-note-wins, like `.gitignore` cascading but resolved by
-proximity). Scope determines which notes are *candidates* for a given file's
+**A note's default scope is its directory subtree, shadowed by nesting, and only
+marker-bearing files participate.** A note applies to the directory it lives in
+and all descendant directories, unless a deeper directory provides its own note,
+which shadows the ancestor's for that subtree (nearest-note-wins, like
+`.gitignore` cascading but resolved by proximity). Only files that carry an
+explicit `@liyi:note` marker — typically a `README`'s 立意 section or a dedicated
+`LIYI.md` — enter the cascade; ordinary documentation with no marker is invisible
+to context resolution. This gate is what keeps the implicit cascade controlled: a
+project-root `README` of fifty pages of user manual contributes nothing to a
+feature's working context unless a `@liyi:note` block explicitly opts a portion
+of it in. Scope determines which notes are *candidates* for a given file's
 context; it does not by itself rank or filter them beyond shadowing. A file's
-applicable notes are therefore the nearest note in each ancestor chain plus any
-notes explicitly pulled in by an `@liyi:see` reference (see
+applicable notes are therefore the nearest marked note in each ancestor chain
+plus any notes explicitly pulled in by an `@liyi:see` reference (see
 `note-see-membership`). Scope is computed live from the directory tree at query
 time; it is never frozen into a sidecar.
 <!-- @liyi:end-requirement note-directory-scope -->
@@ -170,6 +188,50 @@ prose, hash-gated, would make every edit report spurious staleness.
 | Failure mode | STALE / REQ-CHANGED, exit 1 | warning at most |
 | Sidecar footprint | required | none |
 | Purpose | verify intent didn't drift | deliver context to the reader |
+
+---
+
+## Choosing between a note and a requirement
+
+Notes and requirements can both hold a paragraph of governing prose, so authors
+need a rule for which channel a given paragraph belongs in. The rule is about the
+**direction of derivation**, not the importance of the text:
+
+- A **requirement** is prescriptive: the code is a *derivation* of the text. The
+  text is the authority; the implementation exists to satisfy it. Edits to the
+  text legitimately warrant re-verifying every item that derives from it. This is
+  why a requirement is hash-tracked and why `@liyi:related` edges to it gate exit
+  codes.
+- A **note** is descriptive: the text is a *non-binding description* of code that
+  is itself the authority. The prose helps a reader understand or safely modify
+  the code, but the code does not exist to satisfy the prose. This is why a note
+  is untracked — there is nothing to verify drift against.
+
+Three practical tests make the call concrete:
+
+1. **The re-approval smell test.** Imagine editing the paragraph. If the prospect
+   of `liyi check` then reporting ten to fifty `REQ-CHANGED` items — each
+   demanding re-review — feels like *noise* rather than *the right thing to do*,
+   the paragraph is a note. Broad, slow-moving context that governs a whole
+   subtree almost always fails this test: hash-gating it manufactures churn
+   without signal. This test is self-reinforcing in practice — if a tracked
+   requirement keeps producing `REQ-CHANGED` reports you instinctively dismiss,
+   that is the tool telling you the text should have been a note.
+2. **The provenance test.** If the paragraph reads like a theorem, an axiom, or
+   an acceptance criterion — or it originated in a high-stakes design review, an
+   industry standard, or an organizational specification — it carries external
+   authority that the code must honor. That is a requirement; track it so drift
+   is caught.
+3. **The substitution test.** Ask "is the code a derivation of this text, or is
+   this text a description of the code?" The first is a requirement; the second
+   is a note.
+
+The two channels are **not mutually exclusive**. A formally-authored
+requirement can also be referenced informatively, via `@liyi:see`, by functions
+that are not direct derivations but should nonetheless be aware of it — the same
+prose then serves the staleness graph (for its derivations) and the retrieval
+graph (for its bystanders). This overlap is an edge case, not the common path:
+most prose is cleanly one or the other.
 
 ---
 
