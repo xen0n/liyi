@@ -46,7 +46,8 @@ families.
 A `@liyi:file` directive is a marker followed by one space-separated sub-key,
 optionally with a `key=value` argument. It is written in the host language's
 comment syntax, exactly like every other 立意 marker, and is subject to the
-same full-width normalization and multilingual alias rules.
+same full-width normalization rules. Like every 立意 marker, its keyword
+is canonical ASCII (there are no localized keyword aliases).
 
 ```rust
 // @liyi:file language=c
@@ -83,8 +84,8 @@ keyword.
 
 <!-- @liyi:requirement file-directive-namespace -->
 **`@liyi:file` is a single namespaced directive family, not a set of distinct
-markers.** The scanner recognizes one marker keyword (`@liyi:file`, plus its
-multilingual aliases) followed by a sub-key token. Sub-keys are an open set;
+markers.** The scanner recognizes one canonical marker keyword
+(`@liyi:file`) followed by a sub-key token. Sub-keys are an open set;
 encountering an unknown sub-key is a recoverable diagnostic (warning), never a
 hard parse error, so that a file authored against a newer 立意 version degrades
 gracefully on an older binary. The sub-key grammar is `<sub-key>` or
@@ -144,10 +145,10 @@ profiles (`docs/injection-impl.md`) remain authoritative for *embedded* dialects
 within a host file; `@liyi:file language=` sets the *host* language and does not
 describe sub-spans.
 
-**vs. multilingual aliases.** `@liyi:file` and its sub-keys join the alias table
-(`crates/liyi/src/markers.rs`) on the same terms as other markers. The marker
-keyword is localized; sub-key *values* such as language names are not localized
-(a language identifier is a stable token, like a requirement name).
+**vs. marker keywords.** `@liyi:file` joins the canonical marker keyword list
+(`crates/liyi/src/markers.rs`) on the same terms as other markers. Its keyword
+is canonical ASCII; sub-key *values* such as language names are stable tokens
+(like a requirement name), not localized.
 
 ---
 

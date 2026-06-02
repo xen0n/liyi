@@ -237,8 +237,8 @@ The JSON schema is **unchanged**: notes have no sidecar representation, so no
 
 - `crates/liyi/src/markers.rs`: replace the `Module` variant with
   `Note { name: Option<String>, line }`, add `EndNote { name, line }` and
-  `See { name, line }`; update the alias table (escaped `\x40`), hard-removing
-  `@liyi:module` aliases in favor of `@liyi:note`.
+  `See { name, line }`; update the marker keyword list (escaped `\x40`),
+  hard-removing `@liyi:module` in favor of `@liyi:note`.
 - New resolution module: directory-scope walk + `@liyi:see` aggregation, live,
   no sidecar reads.
 - New `liyi context <path:line>` subcommand built on the resolution contract.

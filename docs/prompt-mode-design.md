@@ -284,7 +284,7 @@ All of these are attacker-controlled strings that may reach an LLM context. `--p
 
 ### Residual risks and reviewer guidance
 
-- **Indirect prompt injection via item fields.** A requirement name like `ignore all previous instructions` will appear as an item field value within a group. With the `untrusted_fields` declaration, a well-implemented consuming agent can distinguish trusted from untrusted data. However, a naive agent that concatenates all fields before processing may still be vulnerable. We intentionally do **not** restrict names to an ASCII-safe character class (`[a-zA-Z0-9_.-]+`) because this would contradict the project's multilingual/i18n vision. The length cap (128 bytes) limits payload size; the character set remains open.
+- **Indirect prompt injection via item fields.** A requirement name like `ignore all previous instructions` will appear as an item field value within a group. With the `untrusted_fields` declaration, a well-implemented consuming agent can distinguish trusted from untrusted data. However, a naive agent that concatenates all fields before processing may still be vulnerable. We intentionally do **not** restrict names to an ASCII-safe character class (`[a-zA-Z0-9_.-]+`) because this would contradict the project's support for multilingual names and intent prose. The length cap (128 bytes) limits payload size; the character set remains open.
 
 - **Indirect prompt injection via `requirement_text`.** Even after truncation, 4 096 characters is sufficient for a sophisticated injection payload. `untrusted_fields` declares `requirement_text` as untrusted, but the field stands alone as data — its content is not structurally constrained.
 

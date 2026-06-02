@@ -644,12 +644,12 @@ This is an inherent limitation of per-item staleness (tests have it too — a pa
 
 This section covers the mechanics of the prescriptive pillar — requirements and the `@liyi:related` edges that connect them to code items. For the conceptual distinction between requirements and intents, see *The Two Pillars* above.
 
-### `@立意:需求` / `@liyi:requirement` — named requirements
+### `@liyi:requirement` — named requirements
 
 A requirement is a named, freeform prose block that lives anywhere the linter walks — source comments, Markdown files, doc comments. The `@liyi:requirement <name>` marker declares it:
 
 ```python
-# @立意:需求（多币种加法 考虑舍入）
+# @liyi:requirement（多币种加法 考虑舍入）
 # 同币种的两笔金额相加。不同币种必须抛异常，不得静默失败。
 # 加法必须满足交换律。不得静默溢出。舍入规则由币种决定。
 ```
@@ -662,7 +662,7 @@ overflow silently.
 ```
 
 ```python
-# @立意:需求 인출한도
+# @liyi:requirement 인출한도
 # 1일 인출 한도를 초과하면 거래를 거부한다.
 ```
 
@@ -685,7 +685,7 @@ The requirement text is the tracked artifact — the comment block itself is the
 
 No `intent` field — the requirement text lives at the source site, not duplicated in the sidecar. No `reviewed` — the act of writing a requirement *is* the assertion of intent; provenance belongs to VCS (`git blame` tells you who wrote it and when). The `"requirement"` key itself signals prescriptiveness — no separate boolean needed.
 
-**Name syntax.** If the first non-whitespace character after the keyword is `(` or `（`, the name is everything inside the matching `)` / `）`. Otherwise, the name is the first whitespace-delimited token. This means simple single-token names need no delimiters (`@liyi:requirement auth-check`), while names with internal spaces use parens (`@立意:需求（多币种加法 考虑舍入）`). See *Marker normalization* below for how the linter handles half-width / full-width equivalence.
+**Name syntax.** If the first non-whitespace character after the keyword is `(` or `（`, the name is everything inside the matching `)` / `）`. Otherwise, the name is the first whitespace-delimited token. This means simple single-token names need no delimiters (`@liyi:requirement auth-check`), while names with internal spaces use parens (`@liyi:requirement（多币种加法 考虑舍入）`). See *Marker normalization* below for how the linter handles half-width / full-width equivalence.
 
 <!-- @liyi:requirement requirement-name-uniqueness -->
 **Naming and scope.** Requirement names are unique per repository. The linter reports an error if two `@liyi:requirement` markers declare the same name. Names are matched as exact strings (case-sensitive) after trimming leading/trailing whitespace inside parens. The name is a human-readable identifier, not a path — it can be in any language. No character set restriction: `multi-currency-addition`, `多币种加法`, and `인출한도` are all valid names.
@@ -693,16 +693,7 @@ No `intent` field — the requirement text lives at the source site, not duplica
 
 **Requirements can live anywhere:** in the source file near the code they govern, in `README.md` alongside `@liyi:note`, in a dedicated requirements file, or in doc comments. The linter scans all non-ignored files for the marker.
 
-**End-of-block markers.** The `@liyi:end-requirement <name>` marker closes a requirement block. The name must match the opening `@liyi:requirement <name>`. When both markers are present, the linter pairs them by name to deterministically compute `source_span` — this is the primary span recovery mechanism for files without tree-sitter support (e.g., Markdown). The end marker uses the same name syntax (parenthesized or whitespace-delimited), full-width normalization, and multilingual aliases as the opening marker:
-
-| Alias | Language |
-|---|---|
-| `@liyi:end-requirement` | English (canonical) |
-| `@立意:需求结束` | Chinese |
-| `@liyi:fin-requisito` | Spanish |
-| `@立意:要件終` | Japanese |
-| `@liyi:fin-exigence` | French |
-| `@립의:요건끝` | Korean |
+**End-of-block markers.** The `@liyi:end-requirement <name>` marker closes a requirement block. The name must match the opening `@liyi:requirement <name>`. When both markers are present, the linter pairs them by name to deterministically compute `source_span` — this is the primary span recovery mechanism for files without tree-sitter support (e.g., Markdown). The end marker uses the same name syntax (parenthesized or whitespace-delimited) and full-width normalization as the opening marker.
 
 The end marker is **recommended** for Markdown requirement blocks but not required. When absent, the sidecar's recorded `source_span` is the only span authority and must be maintained manually or via tree-sitter recovery.
 
@@ -714,12 +705,12 @@ Exit codes: 0 = clean, 1 = failures found, 2 = internal error.
 <!-- @liyi:end-requirement exit-codes -->
 ```
 
-### `@立意:有关` / `@liyi:related` — dependency edges
+### `@liyi:related` — dependency edges
 
 The `@liyi:related <name>` annotation declares that a code item participates in a named requirement. The same name syntax applies — parentheses for names with spaces:
 
 ```python
-# @立意:有关（多币种加法 考虑舍入）
+# @liyi:related（多币种加法 考虑舍入）
 def add_money(a: Money, b: Money) -> Money: ...
 ```
 
@@ -959,7 +950,7 @@ def convert_currency(amount: Money, target: Currency, rate: float) -> Money:
 
 The linter treats `@liyi:intent=doc` identically to `@liyi:intent <prose>` — the item is reviewed. The adversarial testing agent reads the docstring as the authoritative intent. One annotation, zero duplication.
 
-Multilingual aliases: `@立意:意图` / `@liyi:intent` and `@立意:意图=文档` / `@liyi:intent=doc`. The `=doc` / `=文档` suffix is part of the marker, not a separate parameter — the linter matches the full string.
+The `=doc` suffix is part of the marker, not a separate parameter — the linter matches the full string.
 
 ### `"=doc"` in the sidecar — the agent equivalent
 
@@ -1100,27 +1091,18 @@ The linter treats `@liyi:ignore` and `@liyi:trivial` the same: no spec required.
 
 During inference, the agent should annotate trivial items with `@liyi:trivial` rather than silently skipping them. This makes the classification visible and reviewable. If a reviewer disagrees, they replace it with `@liyi:nontrivial` — the agent then infers a spec on the next pass and won’t override with `@liyi:trivial`. The linter treats `@liyi:nontrivial` the same as an unannotated item: a spec is required.
 
-### Multilingual annotations
+### Canonical markers, multilingual content
 
-Annotation markers (`@liyi:ignore`, `@liyi:trivial`, `@liyi:nontrivial`, `@liyi:note`, `@liyi:see`, `@liyi:file`, `@liyi:intent`) accept aliases in other languages. The linter maintains a static alias table — a hardcoded set of strings that all map to the same meaning. No alias is privileged; Chinese is listed first to reflect the project's origin, not to imply preference:
+Marker *keywords* are canonical ASCII: `@liyi:ignore`, `@liyi:trivial`, `@liyi:nontrivial`, `@liyi:note`, `@liyi:see`, `@liyi:file`, `@liyi:requirement`, `@liyi:end-requirement`, `@liyi:related`, `@liyi:intent`. There is one spelling per marker — no localized keyword aliases. The linter holds these keyword strings in a flat const list (`MARKER_KEYWORDS` in `crates/liyi/src/markers.rs`).
 
-| 中文 | English | Español | 日本語 | Français | 한국어 | Português |
-|---|---|---|---|---|---|---|
-| `@立意:忽略` | `@liyi:ignore` | `@liyi:ignorar` | `@立意:無視` | `@liyi:ignorer` | `@립의:무시` | `@liyi:ignorar` |
-| `@立意:显然` | `@liyi:trivial` | `@liyi:trivial` | `@立意:自明` | `@liyi:trivial` | `@립의:자명` | `@liyi:trivial` |
-| `@立意:并非显然` | `@liyi:nontrivial` | `@liyi:notrivial` | `@立意:非自明` | `@liyi:nontrivial` | `@립의:비자명` | `@liyi:nãotrivial` |
-| `@立意:笔记` | `@liyi:note` | `@liyi:nota` | `@立意:注記` | `@liyi:note` | `@립의:노트` | `@liyi:nota` |
-| `@立意:参见` | `@liyi:see` | `@liyi:ver` | `@立意:参照` | `@liyi:voir` | `@립의:참조` | `@liyi:ver` |
-| `@立意:文件` | `@liyi:file` | `@liyi:archivo` | `@立意:ファイル` | `@liyi:fichier` | `@립의:파일` | `@liyi:arquivo` |
-| `@立意:需求` | `@liyi:requirement` | `@liyi:requisito` | `@立意:要件` | `@liyi:exigence` | `@립의:요건` | `@liyi:requisito` |
-| `@立意:有关` | `@liyi:related` | `@liyi:relacionado` | `@立意:関連` | `@liyi:lié` | `@립의:관련` | `@liyi:relacionado` |
-| `@立意:意图` | `@liyi:intent` | `@liyi:intención` | `@立意:意図` | `@liyi:intention` | `@립의:의도` | `@liyi:intenção` |
+This is a deliberate scope decision. An earlier design accepted localized keyword aliases (Chinese, Japanese, Korean, Spanish, French, Portuguese) via a static lookup table, in the spirit of Cucumber/Gherkin's `Given`/`Dado`/`假如`. The value was marginal — a keyword is learned once (~8 tokens of vocabulary) — while the costs compounded with adoption: `grep` and tooling fragment across a dozen spellings of the same marker, every new language is a translation-and-review treadmill, and visually similar glyphs invite silent bugs (a real instance: `有関`, mixing the Chinese `有` with the Japanese `関`, matched no alias and produced an inert marker that no check flagged). Fixing the keyword spelling removes all three costs without touching anything users actually express in their own language.
 
-This follows the Cucumber/Gherkin approach: Gherkin accepts `Given`/`Dado`/`假如` as equivalent keywords via a static lookup table. No locale detection, no runtime configuration, no user preference — the linter simply accepts any known alias. The table is a const array in source, under 100 entries, community-extensible via PR.
+The high-value, genuinely multilingual surfaces are untouched:
 
-Both prefix forms are accepted: `@立意:忽略` (fully localized) and `@liyi:忽略` (ASCII prefix, localized annotation). The linter matches the full string against the alias set regardless of prefix. Half-width and full-width punctuation are equivalent — see *Marker normalization* in the CI Linter section.
+- **Intent prose** in `.liyi.jsonc` and `@liyi:note` text is natural language, processed by LLMs that handle any language natively. A Japanese team writes `"intent": "同じ通貨の2つの金額を加算する。交換法則を満たすこと。"` and everything works: the linter never reads intent prose, the testing agent does.
+- **Requirement and `@liyi:note` names** carry no character-set restriction — `multi-currency-addition`, `多币种加法`, and `인출한도` are all valid (see *Naming and scope* above).
 
-The `intent` field in `.liyi.jsonc` and `@liyi:note` prose are already language-agnostic — they’re NL processed by LLMs, which handle any language natively. A Japanese team writes `"intent": "同じ通貨の2つの金額を加算する。交換法則を満たすこと。"` and everything works: the linter doesn’t read intent prose, the testing agent does. Multilingual annotations complete the picture — every human-facing surface of the convention can be used in any supported language.
+Full-width punctuation is still tolerated for the marker itself: the linter normalizes full-width `＠`, `：`, `（`, `）` to their ASCII equivalents before matching, so a CJK input method that emits full-width punctuation around the ASCII keyword is still recognized — see *Marker normalization* in the CI Linter section.
 
 ### File-level: `.liyiignore`
 
@@ -2303,7 +2285,7 @@ The spec-driven development space is no longer hypothetical — GitHub Spec Kit 
 - **No lock-in.** `.liyi.jsonc` files are plain JSONC. `@liyi:note` markers are comments. Delete them and nothing breaks.
 - **Any programming language.** The checking process doesn't parse source code — it reads line ranges from `source_span`, hashes them, compares. `.liyi.jsonc` is JSONC. `@liyi:note` markers use whatever comment syntax the host format already provides. Works with any language, any framework, any build system, any design pattern.
 - **Hardware RTL too.** The convention applies at the RTL level (Verilog, SystemVerilog, VHDL, Chisel) with no design changes — sidecars co-locate with `.v`/`.vhd`/`.scala` files, `source_span` and `source_hash` work on any text, and tree-sitter grammars exist for Verilog and VHDL. In hardware domains where requirements traceability is a compliance obligation (DO-254, ISO 26262, IEC 61508), 立意 functions as a lightweight shim between a requirements management system and RTL source: a `liyi import-reqif` command (deferred, speculative) can consume ReqIF — the open OMG standard (ReqIF 1.2, `formal/2016-07-01`) that DOORS, Polarion, and other tools export — and emit `@liyi:requirement` blocks, connecting managed requirements to RTL implementations with hash-based staleness detection. The tool doesn't replace DOORS; it fills the last mile that DOORS doesn't cover.
-- **Any human language.** Intent prose is natural language — write it in your team’s working language. Annotation markers accept aliases in any supported language (`@liyi:ignore` / `@立意:忽略` / `@liyi:ignorar`). No locale configuration; the linter accepts all aliases from a static table. The project’s Chinese cultural origin isn’t a barrier — it’s an invitation.
+- **Any human language.** Intent prose, requirement text, and requirement/note names are natural language — write them in your team’s working language (`"intent": "..."`, `@liyi:requirement 多币种加法`). Marker *keywords* are canonical ASCII (`@liyi:ignore`, not a localized alias), so tooling and `grep` stay simple. The project’s Chinese cultural origin isn’t a barrier — it’s an invitation.
 
 ### Who this is for
 
