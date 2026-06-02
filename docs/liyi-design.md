@@ -215,13 +215,13 @@ The submodule pattern gives each repo staleness detection against shared require
 
 ### Module-level: `@liyi:note` context primitive
 
-> **🔵 v0.2 redesign — pending implementation.** This section specifies the
-> `@liyi:note` context primitive, which **hard-replaces** the former
-> `@liyi:module` marker. The full design rationale and normative requirements
-> live in `docs/note-context-design.md` (the design authority). The behavior
-> described here is *proposed* and not yet recognized by the shipped linter;
-> `@liyi:module` is retired (pre-1.0, no external adopters). Until the code
-> lands, `@liyi:module` remains the marker the current binary scans for.
+> **🔵 v0.2 redesign.** This section specifies the `@liyi:note` context
+> primitive, which **hard-replaces** the former `@liyi:module` marker. The full
+> design rationale and normative requirements live in
+> `docs/note-context-design.md` (the design authority). The marker scanner and
+> the `liyi context <path>[:line]` resolver are implemented; `@liyi:module` is
+> retired (pre-1.0, no external adopters) and is no longer recognized by the
+> linter.
 
 Module-level context is prose describing cross-function invariants, conventions,
 and gotchas. It can live anywhere — Markdown files, source-level doc comments,
