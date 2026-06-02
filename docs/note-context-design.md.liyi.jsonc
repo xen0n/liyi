@@ -1,0 +1,52 @@
+// liyi v0.1 spec file
+{
+  "version": "0.1",
+  "source": "docs/note-context-design.md",
+  "specs": [
+    {
+      "requirement": "note-is-untracked",
+      "source_span": [
+        90,
+        101
+      ],
+      "source_hash": "sha256:60d2cd16faf066360e7c4d7814aedcdc4728fe01ebcf697fe266e81d4000b365",
+      "source_anchor": "<!-- @liyi:requirement note-is-untracked -->"
+    },
+    {
+      "requirement": "note-directory-scope",
+      "source_span": [
+        105,
+        116
+      ],
+      "source_hash": "sha256:5fc911bedecca28386247dc123fecd92ed49c684afd76637b28c5908f96b370f",
+      "source_anchor": "<!-- @liyi:requirement note-directory-scope -->"
+    },
+    {
+      "requirement": "note-see-membership",
+      "source_span": [
+        130,
+        142
+      ],
+      "source_hash": "sha256:c824ffe6b24822e7ec1ca3dca495d53942ddcf204af4b6bc99e58c34fa54be22",
+      "source_anchor": "<!-- @liyi:requirement note-see-membership -->"
+    },
+    {
+      "requirement": "two-graph-separation",
+      "source_span": [
+        150,
+        163
+      ],
+      "source_hash": "sha256:d31895d6ff4257ae76f55b9d2ed210d10cdad009a4a1239b0aeb0c82c58d6d48",
+      "source_anchor": "<!-- @liyi:requirement two-graph-separation -->"
+    },
+    {
+      "requirement": "context-resolution",
+      "source_span": [
+        181,
+        193
+      ],
+      "source_hash": "sha256:2943bf58b0f14391c9ee0d55f643b4dadffa088c0a668c5a6acbf134ee8c27a8",
+      "source_anchor": "<!-- @liyi:requirement context-resolution -->"
+    }
+  ]
+}

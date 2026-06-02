@@ -1,0 +1,34 @@
+// liyi v0.1 spec file
+{
+  "version": "0.1",
+  "source": "docs/file-directive-design.md",
+  "specs": [
+    {
+      "requirement": "file-directive-namespace",
+      "source_span": [
+        84,
+        95
+      ],
+      "source_hash": "sha256:edc745819aab435da7b603cace5214e3162fdad2ef1122e180b8540537b9dca9",
+      "source_anchor": "<!-- @liyi:requirement file-directive-namespace -->"
+    },
+    {
+      "requirement": "file-language-precedence",
+      "source_span": [
+        97,
+        109
+      ],
+      "source_hash": "sha256:ce858ed13fd07e296296b1cb89c9943b8a335fccb5333465e911d4ebcf40058a",
+      "source_anchor": "<!-- @liyi:requirement file-language-precedence -->"
+    },
+    {
+      "requirement": "file-ignore-additive",
+      "source_span": [
+        111,
+        124
+      ],
+      "source_hash": "sha256:ce163024cdabe4fe8d160ead475826c391f55a0f697f6fa8c30b603c3bf0492c",
+      "source_anchor": "<!-- @liyi:requirement file-ignore-additive -->"
+    }
+  ]
+}
