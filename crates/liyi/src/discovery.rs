@@ -32,7 +32,7 @@ pub struct DiscoveryResult {
 
 /// Filename suffix for 立意 sidecar files.
 ///
-/// <!-- @立意:有关 liyi-sidecar-naming-convention -->
+/// <!-- @liyi:related liyi-sidecar-naming-convention -->
 const SIDECAR_SUFFIX: &str = ".liyi.jsonc";
 
 /// Directory names to always skip during discovery.
@@ -213,7 +213,7 @@ pub fn discover(root: &Path, scope_paths: &[PathBuf]) -> DiscoveryResult {
 /// Strip the `.liyi.jsonc` suffix from a sidecar filename to recover the
 /// source filename component.
 ///
-/// <!-- @立意:有关 liyi-sidecar-naming-convention -->
+/// <!-- @liyi:related liyi-sidecar-naming-convention -->
 fn source_name_from_sidecar(sidecar: &Path) -> String {
     let name = sidecar.file_name().and_then(|n| n.to_str()).unwrap_or("");
     name.strip_suffix(SIDECAR_SUFFIX)
