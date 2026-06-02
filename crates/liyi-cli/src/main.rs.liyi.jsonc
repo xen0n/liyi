@@ -17,23 +17,35 @@
     },
     {
       "item": "main",
-      "reviewed": true,
+      "reviewed": false,
       "intent": "=doc",
       "source_span": [
         26,
-        291
+        294
       ],
       "tree_path": "fn.main",
-      "source_hash": "sha256:60bee078e87f73f127f5f8aa63bd2aea0a7d3435999ca9ac821f6c76ad98d65c",
+      "source_hash": "sha256:b4e0b493e99a15f9fd1cca0946da94ddcf8c800f4b0b4cfce6fadb031de9f39f",
       "source_anchor": "fn main() {"
+    },
+    {
+      "item": "run_context",
+      "reviewed": false,
+      "intent": "Parse the target into a path (and optional trailing :line), locate the repo root, resolve applicable notes via the live note scan, print the rendered report to stdout, and exit 0. Exit 2 on usage or resolution errors (bad line number, path outside the repo, missing root).",
+      "source_span": [
+        304,
+        349
+      ],
+      "tree_path": "fn.run_context",
+      "source_hash": "sha256:bd84de6851258e50675c3c168cadf80d4ca70c207a838f384ea975d4aa4f883c",
+      "source_anchor": "fn run_context(target: String, root: Option<std::path::PathBuf>) {"
     },
     {
       "item": "is_tty",
       "reviewed": true,
       "intent": "=doc",
       "source_span": [
-        297,
-        299
+        355,
+        357
       ],
       "tree_path": "fn.is_tty",
       "source_hash": "sha256:021dc096ffc5aa501d5fe90e8fd1835c4ce784a7de59434995a9be221f97e40f",

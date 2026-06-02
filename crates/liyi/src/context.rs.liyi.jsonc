@@ -1,0 +1,317 @@
+// liyi v0.1 spec file
+{
+  "version": "0.1",
+  "source": "context.rs",
+  "specs": [
+    {
+      "item": "SKIP_DIRS",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        22,
+        22
+      ],
+      "tree_path": "const.SKIP_DIRS",
+      "source_hash": "sha256:43e1bc90bcdbef1713838559613f91af3851fc0a3a9e78f15d468136c57da92e",
+      "source_anchor": "const SKIP_DIRS: &[&str] = &[\".git\", \".hg\", \".svn\", \".bzr\", \".jj\"];"
+    },
+    {
+      "item": "SEE_NONE",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        26,
+        26
+      ],
+      "tree_path": "const.SEE_NONE",
+      "source_hash": "sha256:620bcf35f6b7f29ed23a7489ce76a7ab247b85356be9b26a698bfcb6a3b4f47c",
+      "source_anchor": "const SEE_NONE: &str = \"=none\";"
+    },
+    {
+      "item": "Membership",
+      "reviewed": false,
+      "intent": "Record how a resolved note reached a location: DirectoryScope (pulled in by directory-subtree cascade) or See (pulled in explicitly by an @liyi:see reference). Used to label and prioritize notes in output; carries no tracking semantics.",
+      "source_span": [
+        30,
+        35
+      ],
+      "tree_path": "enum.Membership",
+      "source_hash": "sha256:e810868505f25e1d7fd9a2c386df6792ce4aa6f212b7d04614d42622fddd4c9b",
+      "source_anchor": "pub enum Membership {"
+    },
+    {
+      "item": "Note",
+      "reviewed": false,
+      "intent": "A single note discovered by live scan: its optional group-label name, the repo-relative file it lives in, the 1-indexed [opener, closer] line span, and the governing prose between the markers. Must hold no hash, review flag, or any other staleness-tracking field — notes are untracked context.",
+      "source_span": [
+        39,
+        48
+      ],
+      "tree_path": "struct.Note",
+      "source_hash": "sha256:4bfe9cabc106fbc7f026c1d41f597a8dbbe2e75ff4b48ed360ed0e15028ebe25",
+      "source_anchor": "pub struct Note {"
+    },
+    {
+      "item": "ResolvedNote",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        52,
+        55
+      ],
+      "tree_path": "struct.ResolvedNote",
+      "source_hash": "sha256:2fbe003e9aab97c3fda7d90d4bc23cdf720fd344cace398e65e3ee9051eb8755",
+      "source_anchor": "pub struct ResolvedNote {"
+    },
+    {
+      "item": "is_note_file",
+      "reviewed": false,
+      "intent": "Decide whether a filename may carry notes in the MVP gate: true only for a dedicated LIYI.md or any README*.md (README.md or README.<suffix>.md). This is the filename half of the marker gate; a matching file still contributes nothing unless it carries a @liyi:note marker.",
+      "source_span": [
+        60,
+        64
+      ],
+      "tree_path": "fn.is_note_file",
+      "source_hash": "sha256:1c387d164ec989d5bc3e678c7353c574d389a93606a0d6b756526e42f2c5b41d",
+      "source_anchor": "fn is_note_file(name: &str) -> bool {",
+      "related": {
+        "note-directory-scope": null
+      }
+    },
+    {
+      "item": "parent_dir",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        67,
+        72
+      ],
+      "tree_path": "fn.parent_dir",
+      "source_hash": "sha256:9e219926aab34d30805cb898d673f0c184e6a5f7964025308d8ca598d7f896a7",
+      "source_anchor": "fn parent_dir(rel: &str) -> String {"
+    },
+    {
+      "item": "ancestor_dirs",
+      "reviewed": false,
+      "intent": "Return the ancestor directories of a repo-relative path ordered nearest-first and ending at the repo root (empty string). Order is significant: it drives nearest-wins shadowing in directory-scope resolution. For a path directly in the root, returns just [\"\"].",
+      "source_span": [
+        77,
+        85
+      ],
+      "tree_path": "fn.ancestor_dirs",
+      "source_hash": "sha256:54895f2ba0d6de002a50dffb8afd36d6d300effcc78f3675263800c4ad1b5dbc",
+      "source_anchor": "fn ancestor_dirs(rel: &str) -> Vec<String> {"
+    },
+    {
+      "item": "matching_open",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        90,
+        92
+      ],
+      "tree_path": "fn.matching_open",
+      "source_hash": "sha256:6679ff0bef852a9c6eda6eb5ed5ffda59f635ea8c4ca8ccf428f291ccee1b52e",
+      "source_anchor": "fn matching_open(opens: &[(Option<String>, usize)], end_name: &Option<String>) -> Option<usize> {"
+    },
+    {
+      "item": "extract_note_blocks",
+      "reviewed": false,
+      "intent": "Pair @liyi:note openers with @liyi:end-note closers within one file's scanned markers and return the resulting notes. A closer binds to the nearest open of identical name (anonymous to anonymous). An opener with no matching closer extends to end-of-file (the dedicated-file case). Prose is the text strictly between opener and closer lines, trimmed. Must not read or emit any hash or sidecar state.",
+      "source_span": [
+        99,
+        149
+      ],
+      "tree_path": "fn.extract_note_blocks",
+      "source_hash": "sha256:fa4cdf83c9e15e225dbe8ea0b49539640530e1926d0da41390c1af88465be18f",
+      "source_anchor": "fn extract_note_blocks(content: &str, source: &str) -> Vec<Note> {"
+    },
+    {
+      "item": "collect_notes",
+      "reviewed": false,
+      "intent": "Walk the working tree rooted at `root` (respecting .gitignore/.liyiignore and skipping VCS dirs), scan every note file (per is_note_file) for note blocks, and return all notes with repo-relative source paths. Pure live scan: reads no sidecars, computes no hashes.",
+      "source_span": [
+        153,
+        189
+      ],
+      "tree_path": "fn.collect_notes",
+      "source_hash": "sha256:c68ff66e5cc4fcee312fadc016364211642d2fde914bde1b91cb3f28a1f9d277",
+      "source_anchor": "pub fn collect_notes(root: &Path) -> Vec<Note> {",
+      "related": {
+        "note-is-untracked": null
+      }
+    },
+    {
+      "item": "collect_see",
+      "reviewed": false,
+      "intent": "Scan the target file for @liyi:see markers and return the referenced note names together with a flag indicating whether the opt-out sentinel (=none) is present. MVP is file-scoped: every @liyi:see in the file contributes. The =none sentinel is reported separately and is never returned as a name.",
+      "source_span": [
+        194,
+        207
+      ],
+      "tree_path": "fn.collect_see",
+      "source_hash": "sha256:9b469db95d9c7e517d0cf2fa3d0d1662421aef27b6cef3e8461cfbbc3ca855b3",
+      "source_anchor": "fn collect_see(content: &str) -> (Vec<String>, bool) {"
+    },
+    {
+      "item": "resolve",
+      "reviewed": false,
+      "intent": "Resolve the notes applicable to a repo-relative target via live scan: directory-scope notes from each ancestor directory with nearest-wins shadowing by name (anonymous notes shadow as a group), plus all notes named by the file's @liyi:see references. An @liyi:see =none opt-out suppresses directory-scope notes but never the explicitly see-referenced ones. Each note appears once; results are ordered deterministically by (source path, span start). Reads no sidecar and computes no hash.",
+      "source_span": [
+        217,
+        289
+      ],
+      "tree_path": "fn.resolve",
+      "source_hash": "sha256:db4e502c6ffa75879e027a1d36c480bf3e52571e4ca317823031d0e474ec30fd",
+      "source_anchor": "pub fn resolve(root: &Path, target_rel: &str) -> Vec<ResolvedNote> {",
+      "related": {
+        "context-resolution": null,
+        "note-directory-scope": null
+      }
+    },
+    {
+      "item": "render",
+      "reviewed": false,
+      "intent": "Format resolved notes as the human/agent-readable report: one block per note headed by its name (or an unnamed-note placeholder), annotated with `(via @liyi:see)` when reached by membership, and tagged with the source path, followed by the prose. Emit a clear no-notes message when the list is empty. Output ordering must follow the input order so determinism from resolve is preserved.",
+      "source_span": [
+        292,
+        311
+      ],
+      "tree_path": "fn.render",
+      "source_hash": "sha256:50a5c675ffb1288c9ca19c6557db00549a264bb141cb30c8dfdab21fe667ce38",
+      "source_anchor": "pub fn render(notes: &[ResolvedNote]) -> String {"
+    },
+    {
+      "item": "tests",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        314,
+        477
+      ],
+      "tree_path": "mod.tests",
+      "source_hash": "sha256:d6b92ac9e4dadc18d78fbe0cc6e4555b592ae99d39d6a6c8eb7e0f449da602e9",
+      "source_anchor": "mod tests {"
+    },
+    {
+      "item": "tests::write",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        319,
+        325
+      ],
+      "tree_path": "mod.tests::fn.write",
+      "source_hash": "sha256:82b96522cb4cc15ba6f48d5bbbe23a405de2cd9a807b61a8c94cf04146452d7a",
+      "source_anchor": "    fn write(root: &Path, rel: &str, content: &str) {"
+    },
+    {
+      "item": "tests::ancestor_dirs_walks_to_root",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        328,
+        334
+      ],
+      "tree_path": "mod.tests::fn.ancestor_dirs_walks_to_root",
+      "source_hash": "sha256:22202a8e9ab3c24a797902e3de7d0373c040e1038af8737e2b188a3f0edaf65f",
+      "source_anchor": "    fn ancestor_dirs_walks_to_root() {"
+    },
+    {
+      "item": "tests::extract_named_block",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        337,
+        344
+      ],
+      "tree_path": "mod.tests::fn.extract_named_block",
+      "source_hash": "sha256:3195f3031b76e2938ee0007e040b625bbec78be6cebef62b870203e40bfd3288",
+      "source_anchor": "    fn extract_named_block() {"
+    },
+    {
+      "item": "tests::unclosed_block_extends_to_eof",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        347,
+        354
+      ],
+      "tree_path": "mod.tests::fn.unclosed_block_extends_to_eof",
+      "source_hash": "sha256:85d909eb318bec8693733b629fb69d640486da782fff38c5826160166a1acc33",
+      "source_anchor": "    fn unclosed_block_extends_to_eof() {"
+    },
+    {
+      "item": "tests::directory_scope_includes_ancestor_note",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        357,
+        371
+      ],
+      "tree_path": "mod.tests::fn.directory_scope_includes_ancestor_note",
+      "source_hash": "sha256:d6e6de7681791f1ce33c9eea85b2ce58686421a6f63ffd3a1840ae667d1d6533",
+      "source_anchor": "    fn directory_scope_includes_ancestor_note() {"
+    },
+    {
+      "item": "tests::nearer_note_shadows_same_name",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        374,
+        393
+      ],
+      "tree_path": "mod.tests::fn.nearer_note_shadows_same_name",
+      "source_hash": "sha256:bdd669b5072564d6e8b1e65a474552b395ee244468664fbc38f461b87d6f02d6",
+      "source_anchor": "    fn nearer_note_shadows_same_name() {"
+    },
+    {
+      "item": "tests::see_pulls_remote_note",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        396,
+        414
+      ],
+      "tree_path": "mod.tests::fn.see_pulls_remote_note",
+      "source_hash": "sha256:b6d52e04b45a2c946a5a192bdfac8d281b91e2210bbdd2bc2da6d78322d731ef",
+      "source_anchor": "    fn see_pulls_remote_note() {"
+    },
+    {
+      "item": "tests::see_none_suppresses_directory_scope",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        417,
+        432
+      ],
+      "tree_path": "mod.tests::fn.see_none_suppresses_directory_scope",
+      "source_hash": "sha256:f94b1e57167a7d9fb302b8fb67d9f86b1000b900a6f55ea0a582e328bf06026c",
+      "source_anchor": "    fn see_none_suppresses_directory_scope() {"
+    },
+    {
+      "item": "tests::see_survives_opt_out",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        435,
+        458
+      ],
+      "tree_path": "mod.tests::fn.see_survives_opt_out",
+      "source_hash": "sha256:7155f36a1e3bbef73f93e06d3494988760883eeed7c8a2e7a2d2415b0a851dc0",
+      "source_anchor": "    fn see_survives_opt_out() {"
+    },
+    {
+      "item": "tests::unmarked_readme_is_invisible",
+      "reviewed": false,
+      "intent": "=trivial",
+      "source_span": [
+        461,
+        476
+      ],
+      "tree_path": "mod.tests::fn.unmarked_readme_is_invisible",
+      "source_hash": "sha256:1d90fe171cb951bbae9616ed448af93d6eab2fbb306cffa16324d61ff6c300e4",
+      "source_anchor": "    fn unmarked_readme_is_invisible() {"
+    }
+  ]
+}

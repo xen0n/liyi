@@ -188,6 +188,9 @@ fn main() {
                 }
             }
         },
+        Commands::Context { target, root } => {
+            run_context(target, root);
+        }
         Commands::Approve {
             paths,
             yes,
@@ -288,6 +291,61 @@ fn main() {
             }
         }
     }
+}
+
+/// Resolve and print the context notes applicable to a `<path>` or
+/// `<path>:<line>` location. The line component is accepted for forward
+/// compatibility; the MVP resolves notes file-scoped.
+///
+/// <!-- @liyi:intent Parse the target into a path (and optional trailing
+/// :line), locate the repo root, resolve applicable notes via the live note
+/// scan, print the rendered report to stdout, and exit 0. Exit 2 on usage or
+/// resolution errors (bad line number, path outside the repo, missing root). -->
+fn run_context(target: String, root: Option<std::path::PathBuf>) {
+    // Split an optional trailing `:<line>` (line must be all digits so that
+    // Windows-style drive letters or paths containing ':' are not misparsed).
+    let (path_str, _line): (&str, Option<usize>) = match target.rsplit_once(':') {
+        Some((p, n)) if !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()) => {
+            match n.parse::<usize>() {
+                Ok(parsed) => (p, Some(parsed)),
+                Err(_) => {
+                    eprintln!("Error: invalid line number in '{target}'");
+                    process::exit(2);
+                }
+            }
+        }
+        _ => (target.as_str(), None),
+    };
+
+    let path = std::path::Path::new(path_str);
+    let abs = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        env::current_dir().unwrap_or_default().join(path)
+    };
+
+    let root = match root.or_else(|| liyi::discovery::find_repo_root(&abs)) {
+        Some(r) => r,
+        None => {
+            eprintln!("Error: could not locate repo root (no .git/ found); pass --root");
+            process::exit(2);
+        }
+    };
+
+    let rel = match abs.strip_prefix(&root) {
+        Ok(r) => r.to_string_lossy().replace('\\', "/"),
+        Err(_) => {
+            eprintln!(
+                "Error: target '{}' is not inside repo root '{}'",
+                abs.display(),
+                root.display()
+            );
+            process::exit(2);
+        }
+    };
+
+    let notes = liyi::context::resolve(&root, &rel);
+    print!("{}", liyi::context::render(&notes));
 }
 
 /// Check if stderr is a TTY (for interactive mode detection).

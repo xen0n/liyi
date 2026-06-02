@@ -97,6 +97,16 @@ pub enum Commands {
         trivial_threshold: usize,
     },
 
+    /// Print the context notes applicable to a source location
+    Context {
+        /// Target location as `<path>` or `<path>:<line>`
+        target: String,
+
+        /// Override repo root (default: walk up to .git/)
+        #[arg(long)]
+        root: Option<PathBuf>,
+    },
+
     /// Mark specs as reviewed by a human
     Approve {
         /// Sidecar files, source files, or directories to approve

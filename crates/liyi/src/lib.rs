@@ -1,5 +1,6 @@
 pub mod approve;
 pub mod check;
+pub mod context;
 pub mod diagnostics;
 pub mod discovery;
 pub mod git;
