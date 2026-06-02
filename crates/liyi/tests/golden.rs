@@ -252,26 +252,6 @@ fn fullwidth_markers() {
 }
 
 #[test]
-fn multilingual_aliases() {
-    let (_tmp, root) = fixture_in_tmp("multilingual_aliases");
-    let flags = CheckFlags {
-        fail_on_stale: false,
-        fail_on_unreviewed: false,
-        fail_on_req_changed: false,
-        fail_on_untracked: false,
-    };
-    let (diagnostics, _) = run_check(&root, &[], true, false, &flags);
-
-    let has_ignored = diagnostics
-        .iter()
-        .any(|d| matches!(d.kind, DiagnosticKind::Ignored));
-    assert!(
-        has_ignored,
-        "expected Chinese alias @立意:忽略 to be recognized as Ignored, got: {diagnostics:#?}"
-    );
-}
-
-#[test]
 fn shifted_span() {
     let (_tmp, root) = fixture_in_tmp("shifted_span");
     let flags = CheckFlags {

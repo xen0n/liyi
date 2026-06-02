@@ -54,7 +54,7 @@ pub fn normalize_line(line: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Alias table — maps every accepted marker string to its canonical form.
+// Marker table — the set of accepted marker strings.
 // ---------------------------------------------------------------------------
 
 /// Canonical marker keywords (without the leading `@`).
@@ -75,60 +75,15 @@ const CANON_INTENT: &str = "\x40liyi:intent";
 // @liyi:related marker-normalization
 // @liyi:related quine-escape-in-source
 const ALIAS_TABLE: &[(&str, &str)] = &[
-    // ignore
     (CANON_IGNORE, CANON_IGNORE),
-    ("\x40立意:忽略", CANON_IGNORE),
-    ("\x40liyi:ignorar", CANON_IGNORE),
-    ("\x40立意:無視", CANON_IGNORE),
-    ("\x40liyi:ignorer", CANON_IGNORE),
-    ("\x40립의:무시", CANON_IGNORE),
-    // trivial
     (CANON_TRIVIAL, CANON_TRIVIAL),
-    ("\x40立意:显然", CANON_TRIVIAL),
-    ("\x40立意:自明", CANON_TRIVIAL),
-    ("\x40립의:자명", CANON_TRIVIAL),
-    // nontrivial
     (CANON_NONTRIVIAL, CANON_NONTRIVIAL),
-    ("\x40立意:并非显然", CANON_NONTRIVIAL),
-    ("\x40liyi:notrivial", CANON_NONTRIVIAL),
-    ("\x40立意:非自明", CANON_NONTRIVIAL),
-    ("\x40liyi:nãotrivial", CANON_NONTRIVIAL),
-    ("\x40립의:비자명", CANON_NONTRIVIAL),
-    // module
     (CANON_MODULE, CANON_MODULE),
-    ("\x40立意:模块", CANON_MODULE),
-    ("\x40liyi:módulo", CANON_MODULE),
-    ("\x40立意:モジュール", CANON_MODULE),
-    ("\x40립의:모듈", CANON_MODULE),
-    // end-requirement (must precede requirement — longer aliases match first)
+    // end-requirement must precede requirement — longer keys match first.
     (CANON_END_REQUIREMENT, CANON_END_REQUIREMENT),
-    ("\x40立意:需求结束", CANON_END_REQUIREMENT),
-    ("\x40liyi:fin-requisito", CANON_END_REQUIREMENT),
-    ("\x40立意:要件終", CANON_END_REQUIREMENT),
-    ("\x40liyi:fin-exigence", CANON_END_REQUIREMENT),
-    ("\x40립의:요건끝", CANON_END_REQUIREMENT),
-    // requirement
     (CANON_REQUIREMENT, CANON_REQUIREMENT),
-    ("\x40立意:需求", CANON_REQUIREMENT),
-    ("\x40liyi:requisito", CANON_REQUIREMENT),
-    ("\x40立意:要件", CANON_REQUIREMENT),
-    ("\x40liyi:exigence", CANON_REQUIREMENT),
-    ("\x40립의:요건", CANON_REQUIREMENT),
-    // related
     (CANON_RELATED, CANON_RELATED),
-    ("\x40立意:有关", CANON_RELATED),
-    ("\x40liyi:relacionado", CANON_RELATED),
-    ("\x40立意:関連", CANON_RELATED),
-    ("\x40liyi:lié", CANON_RELATED),
-    ("\x40립의:관련", CANON_RELATED),
-    // intent
     (CANON_INTENT, CANON_INTENT),
-    ("\x40立意:意图", CANON_INTENT),
-    ("\x40liyi:intención", CANON_INTENT),
-    ("\x40立意:意図", CANON_INTENT),
-    ("\x40liyi:intention", CANON_INTENT),
-    ("\x40립의:의도", CANON_INTENT),
-    ("\x40liyi:intenção", CANON_INTENT),
 ];
 
 /// Try to find a known marker at any position in `normalized`.
@@ -368,7 +323,7 @@ pub fn scan_markers(content: &str) -> Vec<SourceMarker> {
             }
             CANON_INTENT => {
                 let trimmed = rest.trim();
-                if trimmed == "=doc" || trimmed == "=文档" {
+                if trimmed == "=doc" {
                     markers.push(SourceMarker::Intent {
                         prose: None,
                         is_doc: true,
@@ -491,17 +446,6 @@ mod tests {
     }
 
     #[test]
-    fn scan_end_requirement_chinese_alias() {
-        let m = scan_markers(
-            "<!-- \x40\u{7acb}\u{610f}:\u{9700}\u{6c42}\u{7ed3}\u{675f} exit-codes -->\n",
-        );
-        assert_eq!(m.len(), 1);
-        assert!(
-            matches!(&m[0], SourceMarker::EndRequirement { name, line: 1 } if name == "exit-codes")
-        );
-    }
-
-    #[test]
     fn scan_requirement_and_end_requirement_pair() {
         let input = "\
 <!-- \x40liyi:requirement(exit-codes) -->\n\
@@ -538,19 +482,6 @@ Exit codes: 0 = clean, 1 = failures.\n\
     }
 
     #[test]
-    fn scan_intent_doc_chinese() {
-        let m = scan_markers("// \x40liyi:intent =文档\n");
-        assert!(matches!(
-            &m[0],
-            SourceMarker::Intent {
-                prose: None,
-                is_doc: true,
-                line: 1
-            }
-        ));
-    }
-
-    #[test]
     fn scan_intent_prose() {
         let m = scan_markers("// \x40liyi:intent Must reject negative amounts\n");
         assert!(
@@ -559,16 +490,8 @@ Exit codes: 0 = clean, 1 = failures.\n\
     }
 
     #[test]
-    fn scan_alias_chinese() {
-        let m = scan_markers("// \x40立意:忽略\n// \x40立意:模块\n");
-        assert_eq!(m.len(), 2);
-        assert!(matches!(&m[0], SourceMarker::Ignore { .. }));
-        assert!(matches!(&m[1], SourceMarker::Module { .. }));
-    }
-
-    #[test]
     fn scan_fullwidth_normalization() {
-        let m = scan_markers("// \u{FF20}立意\u{FF1A}忽略\n");
+        let m = scan_markers("// \u{FF20}liyi\u{FF1A}ignore\n");
         assert_eq!(m.len(), 1);
         assert!(matches!(
             &m[0],
