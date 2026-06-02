@@ -5,7 +5,22 @@ use std::collections::HashMap;
 /// A discovered marker in a source file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SourceMarker {
-    Module {
+    /// A context note opener. `name` is an optional group label; several
+    /// blocks may share a name and aggregate. Untracked — never enters the
+    /// staleness graph.
+    Note {
+        name: Option<String>,
+        line: usize,
+    },
+    /// Closes an embedded note block so its extent is exact.
+    EndNote {
+        name: Option<String>,
+        line: usize,
+    },
+    /// Item-side membership hint pulling a named note into context. The
+    /// sentinel name `=none` suppresses otherwise-in-scope notes.
+    See {
+        name: String,
         line: usize,
     },
     Requirement {
@@ -65,7 +80,9 @@ pub fn normalize_line(line: &str) -> String {
 const CANON_IGNORE: &str = "\x40liyi:ignore";
 const CANON_TRIVIAL: &str = "\x40liyi:trivial";
 const CANON_NONTRIVIAL: &str = "\x40liyi:nontrivial";
-const CANON_MODULE: &str = "\x40liyi:module";
+const CANON_NOTE: &str = "\x40liyi:note";
+const CANON_END_NOTE: &str = "\x40liyi:end-note";
+const CANON_SEE: &str = "\x40liyi:see";
 const CANON_REQUIREMENT: &str = "\x40liyi:requirement";
 const CANON_END_REQUIREMENT: &str = "\x40liyi:end-requirement";
 const CANON_RELATED: &str = "\x40liyi:related";
@@ -73,16 +90,18 @@ const CANON_INTENT: &str = "\x40liyi:intent";
 
 /// All recognized canonical marker keywords.
 ///
-/// Order matters: `end-requirement` must precede `requirement` because
-/// `find_marker` scans by substring and the longer keyword must match
-/// first.
+/// Order matters: `end-requirement` must precede `requirement` and
+/// `end-note` must precede `note`, because `find_marker` scans by substring
+/// and the longer keyword must match first.
 // @liyi:related marker-normalization
 // @liyi:related quine-escape-in-source
 const MARKER_KEYWORDS: &[&str] = &[
     CANON_IGNORE,
     CANON_TRIVIAL,
     CANON_NONTRIVIAL,
-    CANON_MODULE,
+    CANON_END_NOTE,
+    CANON_NOTE,
+    CANON_SEE,
     CANON_END_REQUIREMENT,
     CANON_REQUIREMENT,
     CANON_RELATED,
@@ -131,6 +150,39 @@ fn extract_name(rest: &str) -> Option<String> {
         return None;
     }
     Some(name)
+}
+
+/// Extract an optional group label following a `@liyi:note` / `@liyi:end-note`
+/// marker. Returns `None` when no label is present.
+///
+/// A label must begin with an alphanumeric character. This deliberately
+/// rejects trailing comment terminators (`-->`, `*/`, `--`) so that a
+/// label-less note written as `<!-- @liyi:note -->` is treated as anonymous
+/// rather than mis-parsing the closer as its name.
+fn extract_label(rest: &str) -> Option<String> {
+    let token = rest.split_whitespace().next()?;
+    if !token.chars().next()?.is_alphanumeric() {
+        return None;
+    }
+    if token.len() > MAX_NAME_LEN {
+        return None;
+    }
+    Some(token.to_string())
+}
+
+/// Extract the target of an `@liyi:see` marker. Like [`extract_label`] but
+/// also accepts the opt-out sentinel `=none` (and any future `=`-prefixed
+/// sentinel), while still rejecting comment terminators.
+fn extract_see_target(rest: &str) -> Option<String> {
+    let token = rest.split_whitespace().next()?;
+    let first = token.chars().next()?;
+    if !(first.is_alphanumeric() || first == '=') {
+        return None;
+    }
+    if token.len() > MAX_NAME_LEN {
+        return None;
+    }
+    Some(token.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +335,22 @@ pub fn scan_markers(content: &str) -> Vec<SourceMarker> {
         let rest = &normalized[after..];
 
         match canon {
-            CANON_MODULE => markers.push(SourceMarker::Module { line: line_num }),
+            CANON_NOTE => markers.push(SourceMarker::Note {
+                name: extract_label(rest),
+                line: line_num,
+            }),
+            CANON_END_NOTE => markers.push(SourceMarker::EndNote {
+                name: extract_label(rest),
+                line: line_num,
+            }),
+            CANON_SEE => {
+                if let Some(name) = extract_see_target(rest) {
+                    markers.push(SourceMarker::See {
+                        name,
+                        line: line_num,
+                    });
+                }
+            }
             CANON_TRIVIAL => markers.push(SourceMarker::Trivial { line: line_num }),
             CANON_NONTRIVIAL => markers.push(SourceMarker::Nontrivial { line: line_num }),
             CANON_IGNORE => {
@@ -392,10 +459,53 @@ mod tests {
     }
 
     #[test]
-    fn scan_module() {
-        let m = scan_markers("// \x40liyi:module\n");
+    fn scan_note() {
+        let m = scan_markers("<!-- \x40liyi:note -->\n");
         assert_eq!(m.len(), 1);
-        assert!(matches!(&m[0], SourceMarker::Module { line: 1 }));
+        assert!(matches!(
+            &m[0],
+            SourceMarker::Note {
+                name: None,
+                line: 1
+            }
+        ));
+    }
+
+    #[test]
+    fn scan_note_named() {
+        let m = scan_markers("<!-- \x40liyi:note billing-currency -->\n");
+        assert!(
+            matches!(&m[0], SourceMarker::Note { name: Some(n), line: 1 } if n == "billing-currency")
+        );
+    }
+
+    #[test]
+    fn scan_end_note_named() {
+        let m = scan_markers("<!-- \x40liyi:end-note billing-currency -->\n");
+        assert_eq!(m.len(), 1);
+        assert!(
+            matches!(&m[0], SourceMarker::EndNote { name: Some(n), line: 1 } if n == "billing-currency")
+        );
+    }
+
+    #[test]
+    fn scan_see() {
+        let m = scan_markers("// \x40liyi:see money-rounding\n");
+        assert!(matches!(&m[0], SourceMarker::See { name, line: 1 } if name == "money-rounding"));
+    }
+
+    #[test]
+    fn scan_see_opt_out() {
+        let m = scan_markers("// \x40liyi:see =none\n");
+        assert!(matches!(&m[0], SourceMarker::See { name, line: 1 } if name == "=none"));
+    }
+
+    #[test]
+    fn note_and_end_note_not_confused() {
+        let m = scan_markers("<!-- \x40liyi:note n -->\n<!-- \x40liyi:end-note n -->\n");
+        assert_eq!(m.len(), 2);
+        assert!(matches!(&m[0], SourceMarker::Note { name: Some(n), line: 1 } if n == "n"));
+        assert!(matches!(&m[1], SourceMarker::EndNote { name: Some(n), line: 2 } if n == "n"));
     }
 
     #[test]
@@ -511,7 +621,7 @@ Exit codes: 0 = clean, 1 = failures.\n\
 
     #[test]
     fn fenced_block_suppresses_markers() {
-        let input = "before\n```\n// \x40liyi:module\n```\nafter\n";
+        let input = "before\n```\n// \x40liyi:note\n```\nafter\n";
         let m = scan_markers(input);
         assert!(
             m.is_empty(),
@@ -531,7 +641,7 @@ Exit codes: 0 = clean, 1 = failures.\n\
 
     #[test]
     fn marker_after_fenced_block_still_found() {
-        let input = "```\n// \x40liyi:module\n```\n// \x40liyi:trivial\n";
+        let input = "```\n// \x40liyi:note\n```\n// \x40liyi:trivial\n";
         let m = scan_markers(input);
         assert_eq!(m.len(), 1);
         assert!(matches!(&m[0], SourceMarker::Trivial { line: 4 }));
@@ -539,7 +649,7 @@ Exit codes: 0 = clean, 1 = failures.\n\
 
     #[test]
     fn inline_backtick_suppresses_marker() {
-        let input = "use `\x40liyi:module` in your code\n";
+        let input = "use `\x40liyi:note` in your code\n";
         let m = scan_markers(input);
         assert!(
             m.is_empty(),
@@ -549,8 +659,8 @@ Exit codes: 0 = clean, 1 = failures.\n\
 
     #[test]
     fn inline_backtick_with_surrounding_text() {
-        // Pattern from design doc: `<!-- @liyi:module -->`
-        let input = "The `<!-- \x40liyi:module -->` comment marks the block\n";
+        // Pattern from design doc: `<!-- @liyi:note -->`
+        let input = "The `<!-- \x40liyi:note -->` comment marks the block\n";
         let m = scan_markers(input);
         assert!(
             m.is_empty(),
@@ -570,7 +680,7 @@ Exit codes: 0 = clean, 1 = failures.\n\
 
     #[test]
     fn preceding_single_quote_suppresses() {
-        let input = "the string '\x40liyi:module' is used\n";
+        let input = "the string '\x40liyi:note' is used\n";
         let m = scan_markers(input);
         assert!(
             m.is_empty(),
@@ -604,10 +714,16 @@ Exit codes: 0 = clean, 1 = failures.\n\
 
     #[test]
     fn marker_after_quoted_span_still_found() {
-        let input = "quoted \"\x40liyi:intent\" mention // \x40liyi:module\n";
+        let input = "quoted \"\x40liyi:intent\" mention // \x40liyi:note\n";
         let m = scan_markers(input);
         assert_eq!(m.len(), 1);
-        assert!(matches!(&m[0], SourceMarker::Module { line: 1 }));
+        assert!(matches!(
+            &m[0],
+            SourceMarker::Note {
+                name: None,
+                line: 1
+            }
+        ));
     }
 
     #[test]
@@ -623,10 +739,16 @@ Exit codes: 0 = clean, 1 = failures.\n\
     #[test]
     fn html_comment_marker_not_suppressed() {
         // Real markers inside HTML comments should be detected
-        let input = "<!-- \x40liyi:module -->\n";
+        let input = "<!-- \x40liyi:note -->\n";
         let m = scan_markers(input);
         assert_eq!(m.len(), 1);
-        assert!(matches!(&m[0], SourceMarker::Module { line: 1 }));
+        assert!(matches!(
+            &m[0],
+            SourceMarker::Note {
+                name: None,
+                line: 1
+            }
+        ));
     }
 
     #[test]
