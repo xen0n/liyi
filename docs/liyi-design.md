@@ -213,9 +213,27 @@ This works with the existing mechanism, no schema or linter changes required:
 
 The submodule pattern gives each repo staleness detection against shared requirements, but querying across repos ("which services implement `pci-card-tokenization`?") requires manual grep across a workspace. A future workspace-aware mode could walk sibling repos under a mandated workspace layout and aggregate requirement graphs — not modeling API call flows or data dependencies, but simply surfacing which items across the organization claim `@liyi:related` edges to the same named requirement. This is a shared label namespace with cross-repo visibility, not a distributed dependency graph. The discovery is new; the staleness mechanism is unchanged. Each repo's `liyi check` still runs independently against its own checkout; the workspace query is a read-only aggregation layer for onboarding, auditing, and impact analysis.
 
-### Module-level: `@liyi:module` marker
+### Module-level: `@liyi:note` context primitive
 
-Module-level intent is prose describing cross-function invariants. It can live anywhere — Markdown files, source-level doc comments, wherever the team already writes module documentation. The `@liyi:module` marker is the universal signal the linter keys on.
+> **🔵 v0.2 redesign — pending implementation.** This section specifies the
+> `@liyi:note` context primitive, which **hard-replaces** the former
+> `@liyi:note` marker. The full design rationale and normative requirements
+> live in `docs/note-context-design.md` (the design authority). The behavior
+> described here is *proposed* and not yet recognized by the shipped linter;
+> `@liyi:note` is retired (pre-1.0, no external adopters). Until the code
+> lands, `@liyi:note` remains the marker the current binary scans for.
+
+Module-level context is prose describing cross-function invariants, conventions,
+and gotchas. It can live anywhere — Markdown files, source-level doc comments,
+wherever the team already writes module documentation. A `@liyi:note` marker is
+the universal signal that delimits such prose.
+
+Unlike item specs and requirements, a *note* is a **context primitive**, not a
+staleness artifact: it is marker-only and untracked — no sidecar entry, no
+`source_hash`, no `reviewed` flag — and exists to be *injected into a reader's
+context* when they touch the code it governs, not to be verified against drift.
+See `docs/note-context-design.md` for the two-graph model that keeps notes out
+of the staleness engine.
 
 #### In a `README.md` (or any Markdown file)
 
@@ -225,18 +243,20 @@ Module-level intent is prose describing cross-function invariants. It can live a
 This module handles monetary operations.
 
 ## 立意
-<!-- @liyi:module -->
+<!-- @liyi:note billing-currency -->
 
 All monetary amounts carry their currency. No function in this module
 silently converts between currencies — mismatches must be explicit errors.
 Precision must never be lost through rounding without an explicit
 rounding parameter.
 
+<!-- @liyi:end-note billing-currency -->
+
 ## Usage
 ...
 ```
 
-The heading makes the section discoverable in the rendered page and GitHub's outline sidebar. The `<!-- @liyi:module -->` comment marks the block for the linter. Both are present: the heading is for humans and agents, the marker is for machines.
+The heading makes the section discoverable in the rendered page and GitHub's outline sidebar. The `<!-- @liyi:note ... -->` / `<!-- @liyi:end-note ... -->` pair delimits the block for the resolver. The optional name (`billing-currency`) is a group label, not a unique ID — same-named blocks aggregate, and items can pull a note in by name with `@liyi:see` (see `docs/note-context-design.md`).
 
 Preferred heading text, in order:
 
@@ -244,17 +264,17 @@ Preferred heading text, in order:
 2. **`Liyi`** — if you agree with the Chinese framing but lack a Chinese IME or hanzi support.
 3. **`Intent`** (or your own language) — the heading is for humans; use whatever word your team understands.
 
-The linter never inspects the heading. It only matches `@liyi:module`.
+The resolver never inspects the heading. It only matches `@liyi:note`.
 
 **Convention: use the doc markup language's comment syntax for the marker.** Most doc rendering pipelines go through a markup language — Markdown, reStructuredText, etc. — and each has a native comment syntax that is invisible in rendered output. Use that syntax so the marker never leaks into documentation.
 
-The linter matches the literal string `@liyi:module` — it doesn't care about surrounding syntax.
+The resolver matches the literal string `@liyi:note` (and `@liyi:end-note`) — it doesn't care about surrounding syntax.
 
 #### In a dedicated `LIYI.md`
 
 ```markdown
 # 立意
-<!-- @liyi:module -->
+<!-- @liyi:note billing-currency -->
 
 Currency operations for the billing system.
 
@@ -264,7 +284,7 @@ Precision must never be lost through rounding without an explicit
 rounding parameter.
 ```
 
-A heading is still required (most Markdown linters enforce it).
+A heading is still required (most Markdown linters enforce it). In a dedicated file whose entire body is the note, the closing `@liyi:end-note` is optional — the note runs to end of file.
 
 #### In source code (when the host language has module-level doc conventions)
 
@@ -275,11 +295,12 @@ Rust — top of `mod.rs` or `lib.rs` (rustdoc renders Markdown):
 ```rust
 //! Currency operations for the billing system.
 //!
-//! <!-- @liyi:module -->
+//! <!-- @liyi:note billing-currency -->
 //! All monetary amounts carry their currency. No function
 //! in this module silently converts between currencies — mismatches must
 //! be explicit errors. Precision must never be lost through rounding
 //! without an explicit rounding parameter.
+//! <!-- @liyi:end-note billing-currency -->
 ```
 
 Python/Sphinx — module docstring (Sphinx renders reStructuredText):
@@ -287,7 +308,7 @@ Python/Sphinx — module docstring (Sphinx renders reStructuredText):
 ```python
 """Currency operations for the billing system.
 
-.. @liyi:module
+.. @liyi:note billing-currency
    All monetary amounts carry their currency. No function
    in this module silently converts between currencies — mismatches must
    be explicit errors. Precision must never be lost through rounding
@@ -295,18 +316,19 @@ Python/Sphinx — module docstring (Sphinx renders reStructuredText):
 """
 ```
 
-`.. @liyi:module` is a reST comment — invisible in Sphinx output. The indented body is the intent; it ends at the first un-indented line (reST's own block structure).
+`.. @liyi:note` is a reST comment — invisible in Sphinx output. The indented body is the prose; it ends at the first un-indented line (reST's own block structure), so `@liyi:end-note` is optional here.
 
 Python/mkdocstrings — module docstring (mkdocstrings renders Markdown):
 
 ```python
 """Currency operations for the billing system.
 
-<!-- @liyi:module -->
+<!-- @liyi:note billing-currency -->
 All monetary amounts carry their currency. No function
 in this module silently converts between currencies — mismatches must
 be explicit errors. Precision must never be lost through rounding
 without an explicit rounding parameter.
+<!-- @liyi:end-note billing-currency -->
 """
 ```
 
@@ -315,7 +337,7 @@ Go — `doc.go` (godoc is plain text — no markup comment syntax available):
 ```go
 // Package billing handles currency operations.
 //
-// # 立意 @liyi:module
+// # 立意 @liyi:note billing-currency
 //
 // All monetary amounts carry their currency. No function
 // in this package silently converts between currencies — mismatches must
@@ -324,24 +346,24 @@ Go — `doc.go` (godoc is plain text — no markup comment syntax available):
 package billing
 ```
 
-Go 1.19+ doc comments support `#` headings. Since godoc has no markup comment syntax, the marker is visible in rendered output. Embedding it in the heading (`# 立意 @liyi:module`) gives it structure rather than leaving it as a stray annotation.
+Go 1.19+ doc comments support `#` headings. Since godoc has no markup comment syntax, the marker is visible in rendered output. Embedding it in the heading (`# 立意 @liyi:note`) gives it structure rather than leaving it as a stray annotation.
 
 #### Convention summary
 
 | Location | Markup | Marker syntax |
 |---|---|---|
-| `.md` files (README, LIYI.md, etc.) | Markdown | `<!-- @liyi:module -->` — has a 立意 section |
-| `mod.rs`, `lib.rs` (rustdoc) | Markdown | `//! <!-- @liyi:module -->` |
-| Python docstring (Sphinx) | reST | `.. @liyi:module` |
-| Python docstring (mkdocstrings) | Markdown | `<!-- @liyi:module -->` |
-| `doc.go` (godoc) | plain text | `// # 立意 @liyi:module` (visible, in heading) |
+| `.md` files (README, LIYI.md, etc.) | Markdown | `<!-- @liyi:note -->` … `<!-- @liyi:end-note -->` — has a 立意 section |
+| `mod.rs`, `lib.rs` (rustdoc) | Markdown | `//! <!-- @liyi:note -->` |
+| Python docstring (Sphinx) | reST | `.. @liyi:note` |
+| Python docstring (mkdocstrings) | Markdown | `<!-- @liyi:note -->` |
+| `doc.go` (godoc) | plain text | `// # 立意 @liyi:note` (visible, in heading) |
 
-The `@liyi:module` string is the only thing the linter looks for. Everything else — heading style, file choice, comment syntax — is team preference.
+The `@liyi:note` string is the only thing the resolver looks for. Everything else — heading style, file choice, comment syntax — is team preference. `@liyi:end-note` bounds the prose when the note shares a file with other content; in a dedicated file it is optional.
 
-The linter only checks for the *presence* of `@liyi:module` in a directory's files. It does not parse or consume the intent prose — that text is for humans, agents, and code review; the linter just confirms it exists. A closing `/@liyi:module` tag for mechanical extraction of module intent prose from long files is deferred; the linter does not look for it.
+A note is **untracked**: the resolver does not hash it, does not require a sidecar entry, and never reports it as stale (see `docs/note-context-design.md`, *Notes are untracked*). It is consumed by the context-injection surface (`liyi context <path:line>`, and later LSP/MCP), not by the staleness engine.
 
-- Optional. Not every directory needs one. The agent infers it when cross-function invariants are apparent.
-- The linter can report directories that have `.liyi.jsonc` files but no `@liyi:module` marker (informational, not a failure by default).
+- Optional. Not every directory needs one. The agent writes one when cross-function invariants are apparent.
+- A note's default scope is its directory subtree, shadowed by deeper notes; items opt into a named note with `@liyi:see <name>`. See `docs/note-context-design.md`.
 
 ### Item-level: `.liyi.jsonc`
 
@@ -611,7 +633,7 @@ The agent understands macros semantically — it knows `#[derive(Serialize)]` ge
 
 This is an inherent limitation of per-item staleness (tests have it too — a passing test doesn’t mean its transitive dependencies haven’t changed semantics). The convention addresses it at two other layers:
 
-- **Module-level intent** (`@liyi:module`) captures cross-cutting invariants (“all serialization must round-trip cleanly,” “no endpoint is accessible without authentication”). These invariants remain valid and testable regardless of where the change happened.
+- **Module-level intent** (`@liyi:note`) captures cross-cutting invariants (“all serialization must round-trip cleanly,” “no endpoint is accessible without authentication”). These invariants remain valid and testable regardless of where the change happened.
 - **Adversarial testing** is the designed safety net for semantic drift. A test generated from “must reject unauthenticated requests” will catch a change to `require_auth`’s behavior even though the specced function’s `source_hash` didn’t change.
 
 **Deferred (speculative): code-level dependency graph.** Beyond requirement edges, specs could optionally declare code-level dependencies: `"depends_on": ["src/auth/middleware.rs:require_auth"]`. If any dependency's hash changes, the dependent spec is also flagged stale. The agent is the natural thing to populate this (it already understands call graphs); the linter just follows the edges. This is deferred — the combination of local staleness + requirement tracking + module invariants + adversarial testing covers most real cases — but it's the shape of a tighter answer for teams with highly interconnected code.
@@ -669,7 +691,7 @@ No `intent` field — the requirement text lives at the source site, not duplica
 **Naming and scope.** Requirement names are unique per repository. The linter reports an error if two `@liyi:requirement` markers declare the same name. Names are matched as exact strings (case-sensitive) after trimming leading/trailing whitespace inside parens. The name is a human-readable identifier, not a path — it can be in any language. No character set restriction: `multi-currency-addition`, `多币种加法`, and `인출한도` are all valid names.
 <!-- @liyi:end-requirement requirement-name-uniqueness -->
 
-**Requirements can live anywhere:** in the source file near the code they govern, in `README.md` alongside `@liyi:module`, in a dedicated requirements file, or in doc comments. The linter scans all non-ignored files for the marker.
+**Requirements can live anywhere:** in the source file near the code they govern, in `README.md` alongside `@liyi:note`, in a dedicated requirements file, or in doc comments. The linter scans all non-ignored files for the marker.
 
 **End-of-block markers.** The `@liyi:end-requirement <name>` marker closes a requirement block. The name must match the opening `@liyi:requirement <name>`. When both markers are present, the linter pairs them by name to deterministically compute `source_span` — this is the primary span recovery mechanism for files without tree-sitter support (e.g., Markdown). The end marker uses the same name syntax (parenthesized or whitespace-delimited), full-width normalization, and multilingual aliases as the opening marker:
 
@@ -863,11 +885,11 @@ This is a *human decision*, not an inference — the annotation says "I want thi
 
 Both pillars (see *The Two Pillars* above) are first-class artifacts, and being first-class is what makes review compression possible — you review a few lines of hashed, tracked intent instead of the full implementation. The review surface per item is typically ~10% of the code surface. This ratio holds across codebase sizes, but the absolute numbers scale linearly — a 100k LOC codebase with ~2,000 non-trivial items produces ~10,000 lines of intent, not 5.
 
-**Hierarchical requirements compress the review surface further.** When requirements and `@liyi:module` blocks organize intent into layers, reviewers don't need to read every item spec for every change:
+**Hierarchical requirements compress the review surface further.** When requirements and `@liyi:note` blocks organize intent into layers, reviewers don't need to read every item spec for every change:
 
 | Level | What it contains | Review cost |
 |---|---|---|
-| `@liyi:module` blocks | Cross-function invariants per module | ~5–10 lines each, ~20–40 per project |
+| `@liyi:note` blocks | Cross-function invariants per module | ~5–10 lines each, ~20–40 per project |
 | `@liyi:requirement` blocks | Named, trackable invariants | ~3–8 lines each, ~50–150 per project |
 | Item specs | Per-function/struct intent | ~3–5 lines each, ~2,000 per 100k LOC project |
 
@@ -1080,14 +1102,16 @@ During inference, the agent should annotate trivial items with `@liyi:trivial` r
 
 ### Multilingual annotations
 
-Annotation markers (`@liyi:ignore`, `@liyi:trivial`, `@liyi:nontrivial`, `@liyi:module`, `@liyi:intent`) accept aliases in other languages. The linter maintains a static alias table — a hardcoded set of strings that all map to the same meaning. No alias is privileged; Chinese is listed first to reflect the project's origin, not to imply preference:
+Annotation markers (`@liyi:ignore`, `@liyi:trivial`, `@liyi:nontrivial`, `@liyi:note`, `@liyi:see`, `@liyi:file`, `@liyi:intent`) accept aliases in other languages. The linter maintains a static alias table — a hardcoded set of strings that all map to the same meaning. No alias is privileged; Chinese is listed first to reflect the project's origin, not to imply preference:
 
 | 中文 | English | Español | 日本語 | Français | 한국어 | Português |
 |---|---|---|---|---|---|---|
 | `@立意:忽略` | `@liyi:ignore` | `@liyi:ignorar` | `@立意:無視` | `@liyi:ignorer` | `@립의:무시` | `@liyi:ignorar` |
 | `@立意:显然` | `@liyi:trivial` | `@liyi:trivial` | `@立意:自明` | `@liyi:trivial` | `@립의:자명` | `@liyi:trivial` |
 | `@立意:并非显然` | `@liyi:nontrivial` | `@liyi:notrivial` | `@立意:非自明` | `@liyi:nontrivial` | `@립의:비자명` | `@liyi:nãotrivial` |
-| `@立意:模块` | `@liyi:module` | `@liyi:módulo` | `@立意:モジュール` | `@liyi:module` | `@립의:모듈` | `@liyi:módulo` |
+| `@立意:笔记` | `@liyi:note` | `@liyi:nota` | `@立意:注記` | `@liyi:note` | `@립의:노트` | `@liyi:nota` |
+| `@立意:参见` | `@liyi:see` | `@liyi:ver` | `@立意:参照` | `@liyi:voir` | `@립의:참조` | `@liyi:ver` |
+| `@立意:文件` | `@liyi:file` | `@liyi:archivo` | `@立意:ファイル` | `@liyi:fichier` | `@립의:파일` | `@liyi:arquivo` |
 | `@立意:需求` | `@liyi:requirement` | `@liyi:requisito` | `@立意:要件` | `@liyi:exigence` | `@립의:요건` | `@liyi:requisito` |
 | `@立意:有关` | `@liyi:related` | `@liyi:relacionado` | `@立意:関連` | `@liyi:lié` | `@립의:관련` | `@liyi:relacionado` |
 | `@立意:意图` | `@liyi:intent` | `@liyi:intención` | `@立意:意図` | `@liyi:intention` | `@립의:의도` | `@liyi:intenção` |
@@ -1096,7 +1120,7 @@ This follows the Cucumber/Gherkin approach: Gherkin accepts `Given`/`Dado`/`假�
 
 Both prefix forms are accepted: `@立意:忽略` (fully localized) and `@liyi:忽略` (ASCII prefix, localized annotation). The linter matches the full string against the alias set regardless of prefix. Half-width and full-width punctuation are equivalent — see *Marker normalization* in the CI Linter section.
 
-The `intent` field in `.liyi.jsonc` and `@liyi:module` prose are already language-agnostic — they’re NL processed by LLMs, which handle any language natively. A Japanese team writes `"intent": "同じ通貨の2つの金額を加算する。交換法則を満たすこと。"` and everything works: the linter doesn’t read intent prose, the testing agent does. Multilingual annotations complete the picture — every human-facing surface of the convention can be used in any supported language.
+The `intent` field in `.liyi.jsonc` and `@liyi:note` prose are already language-agnostic — they’re NL processed by LLMs, which handle any language natively. A Japanese team writes `"intent": "同じ通貨の2つの金額を加算する。交換法則を満たすこと。"` and everything works: the linter doesn’t read intent prose, the testing agent does. Multilingual annotations complete the picture — every human-facing surface of the convention can be used in any supported language.
 
 ### File-level: `.liyiignore`
 
@@ -1301,7 +1325,7 @@ This is strictly more robust than the alternative (doubling every regex to accep
 
 ### Self-hosting and the quine problem
 
-立意 dogfoods its own convention: the linter's source has `.liyi.jsonc` specs, `@liyi:module` markers, and `@liyi:requirement` blocks. The design document you are reading contains requirement blocks that are tracked by actual code via `@liyi:related` edges. This creates a bootstrapping problem.
+立意 dogfoods its own convention: the linter's source has `.liyi.jsonc` specs, `@liyi:note` markers, and `@liyi:requirement` blocks. The design document you are reading contains requirement blocks that are tracked by actual code via `@liyi:related` edges. This creates a bootstrapping problem.
 
 **The quine problem.** The linter's marker scanner uses plain substring matching — it has no language awareness. Any file that *mentions* a marker string (as documentation, as an example, or as a string constant) is indistinguishable from a file that *uses* that marker. A program that must read its own source without misinterpreting references to its own syntax is a quine — and quine-like self-reference requires escaping.
 
@@ -1311,21 +1335,21 @@ This is strictly more robust than the alternative (doubling every regex to accep
 In **source code**, the `@` character is escaped in string constants: `\x40` in Rust, `\u0040` in JSON. This is invisible to the reader (it's inside a string literal) and prevents the scanner from matching constants in the alias table, format strings, and test data.
 <!-- @liyi:end-requirement quine-escape-in-source -->
 
-In **documentation and prose** — Markdown files, design docs, READMEs, contributing guides — character escapes are unacceptable. A design document that writes `\x40liyi:module` instead of `@liyi:module` is unreadable. The scanner instead uses **natural-language context** to distinguish real markers from mentions:
+In **documentation and prose** — Markdown files, design docs, READMEs, contributing guides — character escapes are unacceptable. A design document that writes `\x40liyi:module` instead of `@liyi:note` is unreadable. The scanner instead uses **natural-language context** to distinguish real markers from mentions:
 
 <!-- @liyi:requirement markdown-fenced-block-skip -->
 1. **Fenced code blocks.** Lines inside Markdown fenced code blocks (`` ``` `` or `~~~` delimiters) are skipped entirely. The scanner tracks open/close state across lines — a single boolean toggle. This covers all code examples, CLI output samples, and JSON schema excerpts.
 
-2. **Inline code spans.** If the marker's position falls inside an inline backtick span on the same line (determined by counting backtick characters before the match position — odd count means inside code), the marker is rejected. This covers inline mentions like `` `@liyi:module` `` and `` `<!-- @liyi:module -->` ``.
+2. **Inline code spans.** If the marker's position falls inside an inline backtick span on the same line (determined by counting backtick characters before the match position — odd count means inside code), the marker is rejected. This covers inline mentions like `` `@liyi:note` `` and `` `<!-- @liyi:note -->` ``.
 
 3. **Quoted spans.** If the marker falls inside a quoted string — ASCII double quotes (`"…"`), typographic double quotes (`\u{201C}…\u{201D}`), CJK corner brackets (`「…」`), or guillemets (`«…»`) — the marker is rejected. The scanner tracks open/close state within the line, with backslash-escape awareness for ASCII double quotes (so JSON strings like `"…@liyi:requirement…"` are handled correctly). This covers JSON schema description fields, prose that quotes a marker mid-string, and similar cases where the `@` is not adjacent to the opening quote.
 
-4. **Preceding quote characters.** If the character immediately before the `@` is a quotation mark — ASCII quotes (`'`, `"`), typographic quotes (`'`, `'`, `"`, `"`), CJK brackets (`「`, `」`), or guillemets (`«`, `»`) — the marker is rejected. This is defence-in-depth with rule 3, and additionally covers single-quote mentions (`'@liyi:module'`) that rule 3 deliberately excludes to avoid false positives from apostrophes in prose.
+4. **Preceding quote characters.** If the character immediately before the `@` is a quotation mark — ASCII quotes (`'`, `"`), typographic quotes (`'`, `'`, `"`, `"`), CJK brackets (`「`, `」`), or guillemets (`«`, `»`) — the marker is rejected. This is defence-in-depth with rule 3, and additionally covers single-quote mentions (`'@liyi:note'`) that rule 3 deliberately excludes to avoid false positives from apostrophes in prose.
 <!-- @liyi:end-requirement markdown-fenced-block-skip -->
 
 Together, these four checks cover every conventional way that prose references a technical term without asserting it. The scanner remains line-oriented — fenced block state is a single boolean; inline code detection is a character count within one line; quoted-span detection is a per-line open/close toggle; preceding-char is a one-character lookbehind. No Markdown parser is needed.
 
-**Residual gap.** An unquoted, unfenced, unbackticked mention of a marker string in bare flowing prose (e.g., the linter looks for @liyi:module without any quoting) will be matched as a real marker. The fix is editorial: backtick the technical term (`` `@liyi:module` ``), which is standard Markdown practice. For files where editorial cleanup is impractical, `.liyiignore` remains available.
+**Residual gap.** An unquoted, unfenced, unbackticked mention of a marker string in bare flowing prose (e.g., the linter looks for @liyi:note without any quoting) will be matched as a real marker. The fix is editorial: backtick the technical term (`` `@liyi:note` ``), which is standard Markdown practice. For files where editorial cleanup is impractical, `.liyiignore` remains available.
 
 **Why not a separate prefix (`@metaliyi:`, etc.)?** An alternate prefix for self-referential use was considered and rejected. It would require a mode switch (env var, config file, or CLI flag) to tell the scanner which prefix to use, splitting the convention into two variants. The NL-quoting approach is simpler: one prefix, one alias table, one scanner — and the disambiguation rule (backtick your mentions) is already standard technical writing practice.
 
@@ -1602,7 +1626,7 @@ The linter is tested at three levels:
 
 - **Golden-file tests.** A `tests/fixtures/` directory contains small synthetic repos — source files, `.liyi.jsonc` sidecars, `.liyiignore` files, annotation markers — with a corresponding `.expected` file containing the expected `liyi check` output. Each fixture exercises one scenario (stale, shifted, unreviewed, orphaned, malformed, etc.). The test runner runs `liyi check` on each fixture and diffs against expected output. This is the primary regression guard.
 - **Property-based tests for span-shift detection.** The ±100-line scan window and delta-propagation logic are exercised with randomized inputs: insert N lines at random positions, verify that the linter correctly identifies SHIFTED spans and auto-corrects them. This catches off-by-one errors in the heuristic.
-- **Dogfooding.** The 立意 project's own source has `.liyi.jsonc` specs and `@liyi:module` markers. CI runs `liyi check` on the linter's own codebase. This is both a test and a demonstration.
+- **Dogfooding.** The 立意 project's own source has `.liyi.jsonc` specs and `@liyi:note` markers. CI runs `liyi check` on the linter's own codebase. This is both a test and a demonstration.
 
 ---
 
@@ -1619,13 +1643,13 @@ The full AGENTS.md section is ~300 lines: 10 behavioral rules (the part a human 
 
 When writing or modifying code:
 1. For each non-trivial item (function, struct, macro invocation, decorated endpoint, etc.), infer what it SHOULD do (not what it does). Write intent to a sidecar file named `<source_filename>.liyi.jsonc` (e.g., `money.rs` → `money.rs.liyi.jsonc`). Record `source_span` (start/end lines). Do not write `source_hash` or `source_anchor` — the tool fills them in. Do not write `"reviewed"` — that is set by the human via CLI or IDE. Use `"intent": "=doc"` only when the docstring contains behavioral requirements (constraints, error conditions, properties), not just a functional summary — a docstring that says "Returns the sum" is not adequate; one that says "Must reject mismatched currencies with an error" is. For trivial items (simple getters, one-line wrappers), annotate with `@liyi:trivial` instead of writing a spec. Alternatively, when working sidecar-first, use `"intent": "=trivial"` to mark items as trivial without requiring a source annotation.
-2. When module-level invariants are apparent, write an `@liyi:module` block — in the directory's existing module doc (`README.md`, `doc.go`, `mod.rs` doc comment, etc.) or in a dedicated `LIYI.md`. Use the doc markup language's comment syntax for the marker.
+2. When module-level invariants or governing context are apparent, write a `@liyi:note` block — in the directory's existing module doc (`README.md`, `doc.go`, `mod.rs` doc comment, etc.) or in a dedicated `LIYI.md`, closing embedded blocks with `@liyi:end-note`. A note is a context primitive, not a tracked spec: marker-only, never written to a `.liyi.jsonc` or hashed. Pull a named note into a specific item's context with `@liyi:see <name>`.
 3. If a source item has a `@liyi:related <name>` annotation, record the dependency in `.liyi.jsonc` as `"related": {"<name>": null}`. The tool fills in the requirement's current hash.
-4. For each `@liyi:requirement <name>` block encountered, ensure it has a corresponding entry in the co-located `.liyi.jsonc` with `"requirement"` and `"source_span"`. (The tool fills in `"source_hash"`.)
+4. For each `@liyi:requirement <name>` block encountered (closed by `@liyi:end-requirement <name>`), ensure it has a corresponding entry in the co-located `.liyi.jsonc` with `"requirement"` and `"source_span"`. (The tool fills in `"source_hash"`.)
 5. If a spec has `"related"` edges referencing a requirement, do not overwrite the requirement text during inference. Update the spec (update `source_span`) but preserve the `"related"` edges. Do not write `source_hash` — the tool fills it in.
 6. Only generate adversarial tests from items that have a `@liyi:intent` annotation in source or `"reviewed": true` in the sidecar (i.e., human-reviewed intent). When `@liyi:intent` is present in source, use its prose (or the docstring for `=doc`) as the authoritative intent for test generation.
 7. Tests should target boundary conditions, error-handling gaps, property violations, and semantic mismatches. Prioritize tests a subtly wrong implementation would fail.
-8. Skip items annotated with `@liyi:ignore` or `@liyi:trivial`, and files matched by `.liyiignore`. Respect `@liyi:nontrivial` — if present, always infer a spec for that item and never override with `@liyi:trivial`.
+8. Skip items annotated with `@liyi:ignore` or `@liyi:trivial`, files matched by `.liyiignore`, and files bearing a `@liyi:file ignore` directive. Respect `@liyi:nontrivial` — if present, always infer a spec for that item and never override with `@liyi:trivial`. Honor `@liyi:file language=<lang>` as the authoritative language for a file when present.
 9. Use a different model for test generation than the one that wrote the code, when possible.
 10. When `liyi check` reports stale items, choose one of two paths:
     - **Direct re-inference** (preferred during interactive editing with few stale items): re-read the source, update `source_span` and `intent` in the sidecar, leave `"reviewed"` unset. Appropriate when you are the agent that just made the change, the number of stale items is small, and the changes are straightforward.
@@ -1638,7 +1662,7 @@ When writing or modifying code:
 - **Adversarial, not confirmatory.** Find bugs, not confirm correctness.
 - **Spec is the referee.** If the spec says one thing and the code does another, the test exposes the gap. The human decides who's right.
 - **Model diversity.** Different model for tests than for code, when possible.
-- **Never modify source code logic** during the protocol. Only create/update `.liyi.jsonc` files, `@liyi:module` blocks (in docs or doc comments), test files, and annotation comments (`@liyi:trivial`, `@liyi:ignore`, `@liyi:requirement`, `@liyi:related`). Annotation comments are metadata, not logic — adding them does not change program behavior.
+- **Never modify source code logic** during the protocol. Only create/update `.liyi.jsonc` files, `@liyi:note` blocks (in docs or doc comments), test files, and annotation comments (`@liyi:trivial`, `@liyi:ignore`, `@liyi:requirement`, `@liyi:related`). Annotation comments are metadata, not logic — adding them does not change program behavior.
 
 ### The cognitive load inversion: tool-guided agents
 
@@ -2131,7 +2155,7 @@ This section estimates the effort to *build* 立意 itself — the linter, the c
 | Deliverable | Effort (human) | Effort (with agent) |
 |---|---|---|
 | Agent instruction (AGENTS.md paragraph) | 1 hour | 15 minutes |
-| `@liyi:module` convention + examples | 30 minutes | 10 minutes |
+| `@liyi:note` convention + examples | 30 minutes | 10 minutes |
 | `.liyi.jsonc` examples for a demo repo | 1–2 hours | 20 minutes |
 | CI linter (`liyi check` + `liyi check --fix` + `liyi approve` + `liyi init` + `liyi migrate`) | 3–5 days | 2–4 hours |
 | Blog post explaining the practice | 1 day | 2–3 hours |
@@ -2142,7 +2166,7 @@ This section estimates the effort to *build* 立意 itself — the linter, the c
 ## What This Is
 
 - A **CI linter** — `liyi check` + `liyi check --fix`, with tree-sitter-based span recovery. The enforcement mechanism.
-- A **spec convention** — `@liyi:module` blocks (module intent) + `@liyi:requirement` blocks (named requirements) + `.liyi.jsonc` (item-level intent and requirement tracking, JSONC).
+- A **spec convention** — `@liyi:note` blocks (module intent) + `@liyi:requirement` blocks (named requirements) + `.liyi.jsonc` (item-level intent and requirement tracking, JSONC).
 - A **dependency model** — `@liyi:related` edges from code items to named requirements, with transitive staleness.
 - A **triage protocol** (deferred to 0.2.0) — `liyi check --json` provides rich stale-item context; an agent (using whatever model it already has) assesses each item and writes a structured report; `liyi triage --apply` acts on the report. The binary stays deterministic and offline (see *`liyi` is infrastructure; the agent is the brain*).
 - **Agent instructions** — 10 behavioral rules + two JSON schemas in AGENTS.md (~300 lines; the schemas are machine-consumed reference, not human-read).
@@ -2228,7 +2252,7 @@ flowchart TD
 The tagline says *establish intent before execution*. The greenfield and brownfield paths above both begin with code (or existing code) and add intent afterward — the descriptive direction. But the prescriptive pillar enables a forward-edge pattern where intent comes first and drives implementation:
 
 1. User asks an orchestrator agent to implement a feature ("add a billing module").
-2. The orchestrator writes `@liyi:requirement` blocks and a `@liyi:module` section (in `LIYI.md`, `README.md`, or source doc comments) *before generating any code*. These capture what the implementation must satisfy — business rules, domain invariants, error-handling constraints.
+2. The orchestrator writes `@liyi:requirement` blocks and a `@liyi:note` section (in `LIYI.md`, `README.md`, or source doc comments) *before generating any code*. These capture what the implementation must satisfy — business rules, domain invariants, error-handling constraints.
 3. A human reviews the plan — the 太浅了 phase. This is a few lines of NL prose, not code. The review cost is minimal; the leverage is maximal, because everything downstream derives from it.
 4. The orchestrator dispatches sub-agents to implement the code, passing the requirements as context. Sub-agents write `.liyi.jsonc` item specs alongside their code, with `@liyi:related` edges back to the requirements.
 5. `liyi check` verifies the full graph: requirements tracked, related edges present, no coverage gaps.
@@ -2243,13 +2267,13 @@ The tagline says *establish intent before execution*. The greenfield and brownfi
 
 | Layer | Forward-edge fit | Author |
 |---|---|---|
-| `@liyi:module` in `LIYI.md` / README | Excellent — pure prose, no `source_span` needed | Orchestrator |
+| `@liyi:note` in `LIYI.md` / README | Excellent — pure prose, no `source_span` needed | Orchestrator |
 | `@liyi:requirement` blocks | Excellent — can exist before code (see *Prescriptive specs without code*) | Orchestrator |
 | Item-level `.liyi.jsonc` | Post-hoc only — `source_span` requires code to exist | Sub-agents |
 
 The forward workflow is a two-phase process: requirements first (prescriptive, orchestrator), item specs after (descriptive, sub-agents). The two phases have different authors, different review semantics, and different staleness triggers — which is exactly how the *Two Pillars* table frames the distinction.
 
-**This is a convention, not new tooling.** Nothing in `liyi` the binary needs to change. The forward-edge story is an AGENTS.md instruction pattern: "When asked to implement a new module, first write `@liyi:requirement` blocks and a `@liyi:module` section, then implement." The linter already handles requirements-before-code. The value is in naming this as a first-class adoption path.
+**This is a convention, not new tooling.** Nothing in `liyi` the binary needs to change. The forward-edge story is an AGENTS.md instruction pattern: "When asked to implement a new module, first write `@liyi:requirement` blocks and a `@liyi:note` section, then implement." The linter already handles requirements-before-code. The value is in naming this as a first-class adoption path.
 
 ### Why this and not X
 
@@ -2258,7 +2282,7 @@ The forward workflow is a two-phase process: requirements first (prescriptive, o
 - **vs. prose requirements + periodic LLM check ("intent watchdog"):** A team can write intent as prose and set up a periodic trigger that asks an LLM "is the codebase still implementing this requirement?" This covers ~60–70% of the stated value. What it lacks: *addressability* (prose requirements are unaddressed blobs — no structural link from a sentence to a specific function, specific lines, specific test), *incrementality* (the LLM re-evaluates the entire codebase every run — O(codebase) not O(changed items)), *trust stratification* (no distinction between agent-inferred and human-reviewed intent), *graph propagation* (no `related` edges, so transitive impact is invisible), and *ratchet enforcement* (no CI gate, so coverage degrades silently). 立意 is the indexing structure that makes LLM-based intent reasoning tractable at scale — hashes answer "what changed?" cheaply and deterministically; the LLM answers "does it matter?" expensively but only on stale items; the graph answers "who else should care?"
 - **vs. AGENTS.md alone:** Agent instructions are probabilistic — compliance varies and can’t be verified. The linter is deterministic. Instructions tell agents what to do; the linter catches stale specs.
 - **vs. formal contracts (Design by Contract, refinement types):** Those require learning a specification language and significant ramp-up cost. 立意 specs are natural language — the same language agents and humans already use. Strictly less powerful, but the cost to adopt is near zero.
-- **vs. ADRs (Architecture Decision Records):** ADRs capture *why a decision was made* at a point in time. 立意 captures *what code should do right now*. ADRs are append-only history; 立意 specs are living artifacts that go stale when code changes. Complementary, not competing — ADRs explain the decision to adopt a module's design; `@liyi:module` captures the invariants that resulted.
+- **vs. ADRs (Architecture Decision Records):** ADRs capture *why a decision was made* at a point in time. 立意 captures *what code should do right now*. ADRs are append-only history; 立意 specs are living artifacts that go stale when code changes. Complementary, not competing — ADRs explain the decision to adopt a module's design; `@liyi:note` captures the invariants that resulted.
 - **vs. docstrings / JSDoc / rustdoc:** Docstrings describe *what code does* for human readers. 立意 specs describe *what code should do* for adversarial testing. Docstrings aren't tracked for staleness, aren't reviewed as a separate artifact, and aren't fed to a second model for attack. A docstring and a 立意 spec may contain similar text, but they serve different workflows and different consumers.
 - **vs. Cursor rules / Windsurf rules / `.github/copilot-instructions.md`:** These are agent instructions — they tell the agent *how to behave* during generation. 立意's agent instruction is one of these (it lives in AGENTS.md). But the instruction alone is probabilistic; the linter and the sidecar convention are what make the output deterministic and durable. Rules files are the input; 立意 specs are the output.
 - **vs. Augment Code** (the "Intent" workspace, launched Feb 2026 and since absorbed into the Cosmos platform): The "Intent" desktop workspace pitched "spec-driven development" with multi-agent orchestration (Coordinator → Specialist → Verifier) and "living specs" that auto-update as agents work. By mid-2026 that standalone product is deprecated — its page survives only as an orphaned preview deployment — and Augment has pivoted to Cosmos (org-scale agent orchestration) plus a Context-Engine MCP layer that plugs into competitors' agents. The living-specs thesis validated that specs should drive development, but differed fundamentally: *product vs. convention*, *optimistic vs. pessimistic*, *session-scoped vs. repo-durable*, *closed vs. open*. See *Risks → Platform competition* for the axis-by-axis comparison and the updated market context.
@@ -2276,8 +2300,8 @@ The spec-driven development space is no longer hypothetical — GitHub Spec Kit 
 - **Each level stands alone.** You can adopt the instruction without the linter, or the linter without adversarial tests.
 - **Nothing to learn.** JSONC, Markdown, SHA-256. No DSL, no specification language, no framework.
 - **Self-contained.** The linter is a single binary with tree-sitter grammars built in, no runtime dependencies.
-- **No lock-in.** `.liyi.jsonc` files are plain JSONC. `@liyi:module` markers are comments. Delete them and nothing breaks.
-- **Any programming language.** The checking process doesn't parse source code — it reads line ranges from `source_span`, hashes them, compares. `.liyi.jsonc` is JSONC. `@liyi:module` markers use whatever comment syntax the host format already provides. Works with any language, any framework, any build system, any design pattern.
+- **No lock-in.** `.liyi.jsonc` files are plain JSONC. `@liyi:note` markers are comments. Delete them and nothing breaks.
+- **Any programming language.** The checking process doesn't parse source code — it reads line ranges from `source_span`, hashes them, compares. `.liyi.jsonc` is JSONC. `@liyi:note` markers use whatever comment syntax the host format already provides. Works with any language, any framework, any build system, any design pattern.
 - **Hardware RTL too.** The convention applies at the RTL level (Verilog, SystemVerilog, VHDL, Chisel) with no design changes — sidecars co-locate with `.v`/`.vhd`/`.scala` files, `source_span` and `source_hash` work on any text, and tree-sitter grammars exist for Verilog and VHDL. In hardware domains where requirements traceability is a compliance obligation (DO-254, ISO 26262, IEC 61508), 立意 functions as a lightweight shim between a requirements management system and RTL source: a `liyi import-reqif` command (deferred, speculative) can consume ReqIF — the open OMG standard (ReqIF 1.2, `formal/2016-07-01`) that DOORS, Polarion, and other tools export — and emit `@liyi:requirement` blocks, connecting managed requirements to RTL implementations with hash-based staleness detection. The tool doesn't replace DOORS; it fills the last mile that DOORS doesn't cover.
 - **Any human language.** Intent prose is natural language — write it in your team’s working language. Annotation markers accept aliases in any supported language (`@liyi:ignore` / `@立意:忽略` / `@liyi:ignorar`). No locale configuration; the linter accepts all aliases from a static table. The project’s Chinese cultural origin isn’t a barrier — it’s an invitation.
 
@@ -2337,7 +2361,7 @@ What the day-to-day experience looks like once all deliverables exist:
 
 1. **`liyi init`** — scaffolds the 立意 agent instruction section into `AGENTS.md`. This is the equivalent of the project’s own [commit 6b98652](https://github.com/liyi-run/liyi/commit/6b98652), adapted for downstream repos (no self-referential dogfooding language).
 2. **`liyi init src/foo.rs`** — creates skeleton `.liyi.jsonc` sidecars populated with `_hints` (tree-sitter-derived signals: body size, docstring presence, trivial suggestion). The agent reads hints to prioritize inference effort. VCS-derived hint signals are planned for a future release.
-3. **Agent infers intent**, guided by hints, directory by directory. The agent reads each source file, infers intent for non-trivial items, writes `.liyi.jsonc` sidecar files, and adds `@liyi:module` blocks to existing READMEs or doc comments (or creates `LIYI.md` where none exist).
+3. **Agent infers intent**, guided by hints, directory by directory. The agent reads each source file, infers intent for non-trivial items, writes `.liyi.jsonc` sidecar files, and adds `@liyi:note` blocks to existing READMEs or doc comments (or creates `LIYI.md` where none exist).
 4. **Incremental review.** Everything starts unreviewed. Review at your own pace — on first touch, by directory, or by criticality.
 
 Practical notes:
@@ -2350,7 +2374,7 @@ Practical notes:
 
 立意 succeeds as a project if it changes how teams think about AI-generated code. The measure is impact on the software engineering landscape, not internal completeness.
 
-- **Dogfooding.** The 立意 project uses its own convention. The linter's source has `.liyi.jsonc` specs and `@liyi:module` markers. This is both principled and practical — it's the first demo.
+- **Dogfooding.** The 立意 project uses its own convention. The linter's source has `.liyi.jsonc` specs and `@liyi:note` markers. This is both principled and practical — it's the first demo.
 - **Adoption.** Teams outside this project adopt the convention and report it useful. Even a handful of real-world users matters more than stars or downloads.
 - **Validation.** At least one team reports catching a real defect through adversarial testing against reviewed specs that same-model testing missed. Until then, the adversarial hypothesis is plausible but unvalidated — validating it is a goal, not a claim.
 - **Influence.** The practice of persisting AI-inferred intent gains traction, whether through this project's tooling or through the idea spreading independently. If someone builds a better version of 立意, that's still success.
@@ -2434,7 +2458,7 @@ A well-funded competitor (Augment Code, with their Intent product) can absorb th
 2. **Reimplement the staleness model.** If their "living specs" prove unreliable (auto-updating specs drift silently), `source_hash` + `source_span` staleness is a public algorithm, fully specified in this document, trivially reimplementable. They ship "staleness alerts" as a feature.
 3. **Ship `.liyi.jsonc` import/export.** If the convention gains traction, they offer compatibility as a feature — their specs are primary, `.liyi.jsonc` is a second-class interop format. They absorb the convention's ecosystem without contributing to it.
 
-**No license can prevent this.** The convention is a file format (`.liyi.jsonc`), a set of marker strings (`@liyi:module`, `@liyi:intent`), and a staleness algorithm (hash lines, compare). These are ideas and data formats — not copyrightable expression. Even under AGPL, a competitor reimplements the algorithm from this public specification without touching the linter's source code. The JSON Schema is a functional specification. The linter is ~7 k lines of Rust (including tree-sitter integration for 14 languages) — reimplementation cost is modest.
+**No license can prevent this.** The convention is a file format (`.liyi.jsonc`), a set of marker strings (`@liyi:note`, `@liyi:intent`), and a staleness algorithm (hash lines, compare). These are ideas and data formats — not copyrightable expression. Even under AGPL, a competitor reimplements the algorithm from this public specification without touching the linter's source code. The JSON Schema is a functional specification. The linter is ~7 k lines of Rust (including tree-sitter integration for 14 languages) — reimplementation cost is modest.
 
 Copyleft (GPL, AGPL, MPL) would protect the **linter binary** from being embedded in a closed product without releasing source. But:
 
@@ -2449,7 +2473,7 @@ Copyleft (GPL, AGPL, MPL) would protect the **linter binary** from being embedde
 - **Simplicity via MIT.** Some organizations have pre-approved MIT but haven't reviewed Apache-2.0. Some jurisdictions (notably parts of the CJK world, where early adopters are likely) have institutional workflows where MIT's brevity is an advantage.
 - **No GPL-incompatibility trap.** Apache-2.0 is incompatible with GPL-2.0-only. The MIT side covers anyone integrating into a GPL-2.0-only project.
 - **Convention gravity over exclusion.** Conventions win by adoption. Permissive licensing removes friction for the enterprise teams, polyglot shops, and platform integrators who are the primary adoption targets.
-- **Cultural attribution is the durable moat.** 立意 is a Chinese cultural concept. The `.liyi.jsonc` extension, the `@liyi:module` markers, the name, the design document's reasoning — these carry attribution that no license provides and no fork erases. If Augment ships "立意 compatibility," they're advertising the convention by name.
+- **Cultural attribution is the durable moat.** 立意 is a Chinese cultural concept. The `.liyi.jsonc` extension, the `@liyi:note` markers, the name, the design document's reasoning — these carry attribution that no license provides and no fork erases. If Augment ships "立意 compatibility," they're advertising the convention by name.
 - **Ecosystem gravity is the real defense.** If `liyi check` becomes the standard CI linter for intent specs — the way `rustfmt` is the standard formatter, the way `.editorconfig` is the standard config — competitors will interoperate with it rather than replace it. The tool is simple enough that reimplementation is pointless when the original works everywhere.
 
 **This is a deliberate trade.** The designer accepts that Augment (or anyone) can reimplement the convention, absorb it into a proprietary product, and monetize it without contributing back. By the project's own success criteria — "the practice of persisting AI-inferred intent gains traction, whether through this project's tooling or through the idea spreading independently" — that scenario is a form of success. The convention spreading inside a walled garden is less good than the convention spreading openly, but better than the convention not spreading at all.
