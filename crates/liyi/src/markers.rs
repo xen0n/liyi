@@ -71,28 +71,31 @@ const CANON_END_REQUIREMENT: &str = "\x40liyi:end-requirement";
 const CANON_RELATED: &str = "\x40liyi:related";
 const CANON_INTENT: &str = "\x40liyi:intent";
 
-/// (alias, canonical) pairs.  Order does not matter.
+/// All recognized canonical marker keywords.
+///
+/// Order matters: `end-requirement` must precede `requirement` because
+/// `find_marker` scans by substring and the longer keyword must match
+/// first.
 // @liyi:related marker-normalization
 // @liyi:related quine-escape-in-source
-const ALIAS_TABLE: &[(&str, &str)] = &[
-    (CANON_IGNORE, CANON_IGNORE),
-    (CANON_TRIVIAL, CANON_TRIVIAL),
-    (CANON_NONTRIVIAL, CANON_NONTRIVIAL),
-    (CANON_MODULE, CANON_MODULE),
-    // end-requirement must precede requirement — longer keys match first.
-    (CANON_END_REQUIREMENT, CANON_END_REQUIREMENT),
-    (CANON_REQUIREMENT, CANON_REQUIREMENT),
-    (CANON_RELATED, CANON_RELATED),
-    (CANON_INTENT, CANON_INTENT),
+const MARKER_KEYWORDS: &[&str] = &[
+    CANON_IGNORE,
+    CANON_TRIVIAL,
+    CANON_NONTRIVIAL,
+    CANON_MODULE,
+    CANON_END_REQUIREMENT,
+    CANON_REQUIREMENT,
+    CANON_RELATED,
+    CANON_INTENT,
 ];
 
 /// Try to find a known marker at any position in `normalized`.
-/// Returns `(canonical, byte-offset of match start, byte-offset past the matched alias)` on success.
+/// Returns `(keyword, byte-offset of match start, byte-offset past the matched keyword)` on success.
 // @liyi:related marker-normalization
 fn find_marker(normalized: &str) -> Option<(&'static str, usize, usize)> {
-    for &(alias, canon) in ALIAS_TABLE {
-        if let Some(pos) = normalized.find(alias) {
-            return Some((canon, pos, pos + alias.len()));
+    for &keyword in MARKER_KEYWORDS {
+        if let Some(pos) = normalized.find(keyword) {
+            return Some((keyword, pos, pos + keyword.len()));
         }
     }
     None

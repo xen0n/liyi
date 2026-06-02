@@ -31,16 +31,16 @@
       }
     },
     {
-      "item": "ALIAS_TABLE",
+      "item": "MARKER_KEYWORDS",
       "reviewed": false,
-      "intent": "List the canonical @liyi:* marker keywords the linter recognizes, as (string, canonical) pairs. This table is the single source of truth for marker recognition; only canonical ASCII keywords are accepted (no localized keyword aliases).",
+      "intent": "List the canonical @liyi:* marker keywords the linter recognizes. This is the single source of truth for marker recognition; only canonical ASCII keywords are accepted (no localized keyword aliases). Order matters: end-requirement must precede requirement so the longer keyword matches first under substring scanning.",
       "source_span": [
-        77,
-        87
+        81,
+        90
       ],
-      "tree_path": "const.ALIAS_TABLE",
-      "source_hash": "sha256:d8c2988fc6d9b60eb423394eb0cb7e1799900ff76a3fb527bf72501782ed0324",
-      "source_anchor": "const ALIAS_TABLE: &[(&str, &str)] = &[",
+      "tree_path": "const.MARKER_KEYWORDS",
+      "source_hash": "sha256:8128a43295d88e9adaaf13d4f7ae93703c9d22ab4fcae0040ddddc84a7e167c4",
+      "source_anchor": "const MARKER_KEYWORDS: &[&str] = &[",
       "related": {
         "marker-normalization": "sha256:f1786541ac9be4533a36924a80c578a749024a4980fbc323417c2d5640ed6306",
         "quine-escape-in-source": "sha256:b929750d0d3c9ce24a6f814d7a1db15f2fc03983efa2647cfcf6a7462d2c8b81"
@@ -48,14 +48,14 @@
     },
     {
       "item": "find_marker",
-      "reviewed": true,
-      "intent": "Search a normalized line for any known marker alias from ALIAS_TABLE. Return the canonical marker keyword, the byte offset of the match start, and the byte offset past the matched alias, or None if no marker is found.",
+      "reviewed": false,
+      "intent": "Search a normalized line for any known marker keyword from MARKER_KEYWORDS. Return the matched keyword, the byte offset of the match start, and the byte offset past the matched keyword, or None if no marker is found.",
       "source_span": [
-        92,
-        99
+        95,
+        102
       ],
       "tree_path": "fn.find_marker",
-      "source_hash": "sha256:211721ddd702aba9aea74f65715b955688442e6b315cdc4ef841fe3ecd904de4",
+      "source_hash": "sha256:d79c4bb329124739edca1971fa413f604b3b46789a915c5cf7b25ae8a51e88d0",
       "source_anchor": "fn find_marker(normalized: &str) -> Option<(&'static str, usize, usize)> {",
       "related": {
         "marker-normalization": "sha256:f1786541ac9be4533a36924a80c578a749024a4980fbc323417c2d5640ed6306"
@@ -66,8 +66,8 @@
       "reviewed": true,
       "intent": "Define the set of quotation-mark characters that suppress marker detection when they immediately precede the @ of a marker. Must cover ASCII quotes, typographic quotes, CJK corner brackets, and guillemets.",
       "source_span": [
-        141,
-        153
+        144,
+        156
       ],
       "tree_path": "const.QUOTE_CHARS",
       "source_hash": "sha256:ee3eff2a2025e98fd1a03abd45197bfa2948f48b686ef1741fa9f3f650ffb283",
@@ -79,8 +79,8 @@
       "reviewed": true,
       "intent": "Determine whether a byte position on a line falls inside an inline backtick code span by counting backtick characters before the position. Odd count means inside code, even means outside.",
       "source_span": [
-        158,
-        169
+        161,
+        172
       ],
       "tree_path": "fn.is_in_inline_code",
       "source_hash": "sha256:9ae8ada836bee1fed505f890342dd5eec818c35bf71cd0d7cc8019b23881cbf9",
@@ -92,8 +92,8 @@
       "reviewed": true,
       "intent": "Return true if the character immediately before a byte position on a line is any character in the QUOTE_CHARS set (a quotation mark across locales).",
       "source_span": [
-        173,
-        180
+        176,
+        183
       ],
       "tree_path": "fn.preceded_by_quote",
       "source_hash": "sha256:7d9413623ab4a54b767c3ce82f0cbe7f32e6bc9bb8ee97602dffe39852610c55",
@@ -105,8 +105,8 @@
       "reviewed": true,
       "intent": "Return true if a byte position falls inside a quoted span on the current line. Track ASCII double-quoted strings with backslash escapes plus paired typographic and CJK quote forms so documentary mentions later inside quoted prose or JSON strings are suppressed.",
       "source_span": [
-        188,
-        223
+        191,
+        226
       ],
       "tree_path": "fn.is_in_quoted_span",
       "source_hash": "sha256:815a18dab70edc31877e950fc6d71a6f9cbef3eb78743a0a9440d73667b8ba97",
@@ -117,8 +117,8 @@
       "reviewed": true,
       "intent": "Return true if a line (after stripping leading whitespace) starts with ``` or ~~~, indicating a Markdown fenced code block boundary.",
       "source_span": [
-        227,
-        230
+        230,
+        233
       ],
       "tree_path": "fn.is_fence_delimiter",
       "source_hash": "sha256:785d829b2997ba79b8f15786fc0bef393d4af727496c44b9027b5ece867ab32f",
@@ -133,8 +133,8 @@
       "reviewed": true,
       "intent": "=doc",
       "source_span": [
-        105,
-        105
+        108,
+        108
       ],
       "tree_path": "const.MAX_NAME_LEN",
       "source_hash": "sha256:a31c8dbf7aa7c2559e00304b9e29665e105c7aae4a1ad2089c0a1125cf748728",
@@ -145,8 +145,8 @@
       "reviewed": true,
       "intent": "Extract a name argument from the text after a marker keyword: if the first non-whitespace character is '(', take the content up to the matching ')'; otherwise take the first whitespace-delimited token. Return None if no name is present or if the name exceeds MAX_NAME_LEN bytes (security: bounds attacker-controlled text in --prompt output).",
       "source_span": [
-        111,
-        131
+        114,
+        134
       ],
       "tree_path": "fn.extract_name",
       "source_hash": "sha256:82f1ce7a581c8d01e063fb6a65c28da907d5256c006eaf53a540c2a3c13a2a06",
@@ -157,8 +157,8 @@
       "reviewed": false,
       "intent": "Scan all lines of a source file, normalize each line for full-width characters, and return a list of SourceMarker values for every recognized @liyi: marker found. Line numbers are 1-indexed. Markers inside fenced code blocks, inline backtick spans, quoted spans, or immediately after quotation marks are suppressed (NL-quoting). Handles the =doc sentinel for intent markers.",
       "source_span": [
-        241,
-        350
+        244,
+        353
       ],
       "tree_path": "fn.scan_markers",
       "source_hash": "sha256:ec431895f10e97199d14f840f2c4c6f7130cbb5c6885ee8317831aac09794c3c",
