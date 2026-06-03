@@ -1,0 +1,43 @@
+// liyi v0.1 spec file
+{
+  "version": "0.1",
+  "source": "docs/inline-hash-backend-design.md",
+  "specs": [
+    {
+      "requirement": "inline-hash-requirement-scoped",
+      "source_span": [
+        55,
+        65
+      ],
+      "source_hash": "sha256:97fe4c6353ea0be51fe715fb8ce65b6bf4fe83e90bfe2cacdca5e0b4f0e9148f",
+      "source_anchor": "<!-- @liyi:requirement inline-hash-requirement-scoped -->"
+    },
+    {
+      "requirement": "inline-hash-tool-writes-source",
+      "source_span": [
+        71,
+        84
+      ],
+      "source_hash": "sha256:80de0a67de8b9e0684525b40f7ee2ca716e3d32e980d859880dcb69ac49ffc9f",
+      "source_anchor": "<!-- @liyi:requirement inline-hash-tool-writes-source -->"
+    },
+    {
+      "requirement": "inline-hash-merge-isomorphism",
+      "source_span": [
+        97,
+        108
+      ],
+      "source_hash": "sha256:189260839c078d13a71ee1c0b2b9b0230ec7e71eea85efa10f11f5d8e2f7c7f4",
+      "source_anchor": "<!-- @liyi:requirement inline-hash-merge-isomorphism -->"
+    },
+    {
+      "requirement": "inline-hash-is-advisory-only",
+      "source_span": [
+        118,
+        129
+      ],
+      "source_hash": "sha256:ae39f05022bbdb1553f2aa593e4539cdd6731fe649c50cc70f51d046a83acb76",
+      "source_anchor": "<!-- @liyi:requirement inline-hash-is-advisory-only -->"
+    }
+  ]
+}
