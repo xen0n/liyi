@@ -1,0 +1,70 @@
+// liyi v0.1 spec file
+{
+  "version": "0.1",
+  "source": "docs/advisory-profile-design.md",
+  "specs": [
+    {
+      "requirement": "advisory-profile-declaration",
+      "source_span": [
+        95,
+        108
+      ],
+      "source_hash": "sha256:da88008cff57cd44326c2c162d3facdd5b7766c88463f7a1dadb94636a6f4474",
+      "source_anchor": "<!-- @liyi:requirement advisory-profile-declaration -->"
+    },
+    {
+      "requirement": "advisory-graduation-direction",
+      "source_span": [
+        132,
+        145
+      ],
+      "source_hash": "sha256:eae9dc87f44763425dc7b68f0bb38f65a8869ecadb71bd0e131bf5f9d1a3e0c6",
+      "source_anchor": "<!-- @liyi:requirement advisory-graduation-direction -->"
+    },
+    {
+      "requirement": "advisory-staleness-scope",
+      "source_span": [
+        161,
+        172
+      ],
+      "source_hash": "sha256:31b01bf1cebea473334d7cdb06368fe94184d704dab2dcc4c8fbbdf01ae6b4fc",
+      "source_anchor": "<!-- @liyi:requirement advisory-staleness-scope -->"
+    },
+    {
+      "requirement": "advisory-gate-vcs",
+      "source_span": [
+        185,
+        193
+      ],
+      "source_hash": "sha256:4e9a2777341ea15a3cefd4154aa4649b876a6bfc2c39bd4c51d33e535191f74f",
+      "source_anchor": "<!-- @liyi:requirement advisory-gate-vcs -->"
+    },
+    {
+      "requirement": "advisory-requirement-bootstrap",
+      "source_span": [
+        195,
+        207
+      ],
+      "source_hash": "sha256:81cce6c70054e8fa3f658e92968f8e09eca8d4502659a86c7693d6e047b1f55c",
+      "source_anchor": "<!-- @liyi:requirement advisory-requirement-bootstrap -->"
+    },
+    {
+      "requirement": "coverage-gauge-surfaced",
+      "source_span": [
+        216,
+        227
+      ],
+      "source_hash": "sha256:b77721800434af879b6dcaf934dae12bf21f408c418755e23f1ac29a15279c03",
+      "source_anchor": "<!-- @liyi:requirement coverage-gauge-surfaced -->"
+    },
+    {
+      "requirement": "storage-backend-seam",
+      "source_span": [
+        238,
+        250
+      ],
+      "source_hash": "sha256:a517dbb7ff6f78f0b0eacab155110f38c2616dbf84dbe4456743d4cafa4c1b5f",
+      "source_anchor": "<!-- @liyi:requirement storage-backend-seam -->"
+    }
+  ]
+}
