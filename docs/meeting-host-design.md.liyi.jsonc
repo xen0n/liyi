@@ -1,0 +1,61 @@
+// liyi v0.1 spec file
+{
+  "version": "0.1",
+  "source": "docs/meeting-host-design.md",
+  "specs": [
+    {
+      "requirement": "host-is-out-of-binary",
+      "source_span": [
+        65,
+        75
+      ],
+      "source_hash": "sha256:f8e2ce42bf50150371a105e1db127fd507f3d285d51da661ddbeb94776d4a050",
+      "source_anchor": "<!-- @liyi:requirement host-is-out-of-binary -->"
+    },
+    {
+      "requirement": "host-consumes-deterministic-surfaces",
+      "source_span": [
+        79,
+        91
+      ],
+      "source_hash": "sha256:fc2db75d8fe556308da948a45ad45b44a5065850c7af869d32ee62259d9e8431",
+      "source_anchor": "<!-- @liyi:requirement host-consumes-deterministic-surfaces -->"
+    },
+    {
+      "requirement": "host-propose-only",
+      "source_span": [
+        97,
+        105
+      ],
+      "source_hash": "sha256:798b42d6283f950193a03d0accc021bc3b97162f49a3cd8e7faa60be8a8329e4",
+      "source_anchor": "<!-- @liyi:requirement host-propose-only -->"
+    },
+    {
+      "requirement": "host-never-vouches",
+      "source_span": [
+        118,
+        129
+      ],
+      "source_hash": "sha256:89fc776425e6252fb4cb00e758264d1c3190c0221f436f9912938e9bba7110b8",
+      "source_anchor": "<!-- @liyi:requirement host-never-vouches -->"
+    },
+    {
+      "requirement": "host-elicitation-challenge",
+      "source_span": [
+        149,
+        163
+      ],
+      "source_hash": "sha256:c3f6822e1772c974d51ea90c5b11a3ac4cd65727afa3fcfc341384bcc081ce96",
+      "source_anchor": "<!-- @liyi:requirement host-elicitation-challenge -->"
+    },
+    {
+      "requirement": "host-proposes-missing-edges",
+      "source_span": [
+        178,
+        188
+      ],
+      "source_hash": "sha256:fcce928bced9f5b2ca0ac23993452b0aefc5b9f688501949d75ec387e64835d9",
+      "source_anchor": "<!-- @liyi:requirement host-proposes-missing-edges -->"
+    }
+  ]
+}
